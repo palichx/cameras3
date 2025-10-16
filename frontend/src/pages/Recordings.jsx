@@ -123,12 +123,12 @@ const Recordings = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>Камера</Label>
-            <Select value={filters.camera_id} onValueChange={(value) => setFilters({ ...filters, camera_id: value })}>
+            <Select value={filters.camera_id || "all"} onValueChange={(value) => setFilters({ ...filters, camera_id: value === "all" ? "" : value })}>
               <SelectTrigger data-testid="filter-camera" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все камеры" />
               </SelectTrigger>
               <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)]">
-                <SelectItem value="">Все камеры</SelectItem>
+                <SelectItem value="all">Все камеры</SelectItem>
                 {cameras.map((camera) => (
                   <SelectItem key={camera.id} value={camera.id}>
                     {camera.name}
@@ -140,12 +140,12 @@ const Recordings = () => {
 
           <div>
             <Label>Тип записи</Label>
-            <Select value={filters.record_type} onValueChange={(value) => setFilters({ ...filters, record_type: value })}>
+            <Select value={filters.record_type || "all"} onValueChange={(value) => setFilters({ ...filters, record_type: value === "all" ? "" : value })}>
               <SelectTrigger data-testid="filter-type" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все типы" />
               </SelectTrigger>
               <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)]">
-                <SelectItem value="">Все типы</SelectItem>
+                <SelectItem value="all">Все типы</SelectItem>
                 <SelectItem value="continuous">Непрерывная</SelectItem>
                 <SelectItem value="motion">По движению</SelectItem>
               </SelectContent>
