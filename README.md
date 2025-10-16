@@ -87,7 +87,7 @@ git clone <repository-url>
 cd secureview
 
 # Запустить все сервисы
-docker-compose up -d
+docker-compose up -d --build
 
 # Проверить статус
 docker-compose ps
@@ -110,6 +110,13 @@ docker-compose down
 ```bash
 docker-compose down -v
 ```
+
+### Важно
+При первом запуске Docker автоматически:
+- Установит все зависимости (включая FFmpeg для конвертации видео)
+- Создаст необходимые директории
+- Настроит сеть между сервисами
+- Видео будут записываться в формате MJPEG (.avi) и автоматически конвертироваться в H.264 MP4 при воспроизведении
 
 ## Настройка
 
