@@ -143,9 +143,9 @@ class CameraProcessor:
             storage_path = Path(self.camera.recording.storage_path)
             storage_path.mkdir(parents=True, exist_ok=True)
             
-            # Generate filename
+            # Generate filename - use .avi for MJPEG
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            filename = f"{self.camera.id}_{timestamp}_{record_type}.mp4"
+            filename = f"{self.camera.id}_{timestamp}_{record_type}.avi"
             filepath = storage_path / filename
             
             # Get frame dimensions
