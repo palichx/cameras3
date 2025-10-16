@@ -270,6 +270,44 @@ const CameraSettingsDialog = ({ camera, open, onClose, onSave }) => {
                     step={1}
                   />
                 </div>
+
+                <div>
+                  <Label>Предзапись (сек): {settings.motion.pre_record_seconds}</Label>
+                  <p className="text-xs text-[var(--text-secondary)] mb-2">
+                    Запись начнется за N секунд до обнаружения движения
+                  </p>
+                  <Slider
+                    value={[settings.motion.pre_record_seconds || 5]}
+                    onValueChange={([value]) =>
+                      setSettings({
+                        ...settings,
+                        motion: { ...settings.motion, pre_record_seconds: value },
+                      })
+                    }
+                    min={0}
+                    max={30}
+                    step={1}
+                  />
+                </div>
+
+                <div>
+                  <Label>Постзапись (сек): {settings.motion.post_record_seconds}</Label>
+                  <p className="text-xs text-[var(--text-secondary)] mb-2">
+                    Запись продолжится N секунд после окончания движения
+                  </p>
+                  <Slider
+                    value={[settings.motion.post_record_seconds || 10]}
+                    onValueChange={([value]) =>
+                      setSettings({
+                        ...settings,
+                        motion: { ...settings.motion, post_record_seconds: value },
+                      })
+                    }
+                    min={0}
+                    max={60}
+                    step={5}
+                  />
+                </div>
               </>
             )}
           </TabsContent>
