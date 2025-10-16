@@ -205,18 +205,29 @@ async def get_recording_video(recording_id: str, request: Request):
     if file_path.suffix == '.avi':
         mp4_path = file_path.with_suffix('.mp4')
         
-        # Check if MP4 already exists
+        # Check if MP4 already exists, if not convert
         if not mp4_path.exists():
+            logger.info(f"Converting {file_path} to MP4...")
             # Convert AVI to MP4 using ffmpeg
             cmd = f'ffmpeg -i "{file_path}" -c:v libx264 -preset ultrafast -crf 23 -y "{mp4_path}"'
             process = await asyncio.create_subprocess_shell(
                 cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
             )
-            await process.communicate()
+            await process.wait()
+            
+            if not mp4_path.exists():
+                logger.error(f"Failed to convert {file_path} to MP4")
+                raise HTTPException(status_code=500, detail="Failed to convert video")
+            
+            logger.info(f"Conversion complete: {mp4_path}")
         
         file_path = mp4_path
+    
+    # Double-check file exists
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Converted video file not found")
     
     # Get file size
     file_size = file_path.stat().st_size
