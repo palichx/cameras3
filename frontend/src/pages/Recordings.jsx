@@ -71,6 +71,14 @@ const Recordings = () => {
     }
   };
 
+  const handleDownloadRecording = (id, cameraName, startTime) => {
+    const filename = `${cameraName}_${startTime.replace(/[:.]/g, '-')}.mp4`;
+    const link = document.createElement('a');
+    link.href = `${API}/recordings/${id}/video`;
+    link.download = filename;
+    link.click();
+  };
+
   const formatDuration = (seconds) => {
     if (!seconds) return '0:00';
     const mins = Math.floor(seconds / 60);
