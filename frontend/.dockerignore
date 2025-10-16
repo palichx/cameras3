@@ -1,3 +1,8 @@
+# Include package files (important!)
+!package.json
+!yarn.lock
+
+# Ignore everything else that's not needed
 node_modules
 build
 npm-debug.log
