@@ -226,6 +226,13 @@ const Recordings = () => {
                   Воспроизвести
                 </Button>
                 <Button
+                  onClick={() => handleDownloadRecording(recording.id, recording.camera_name, recording.start_time)}
+                  data-testid={`download-recording-${recording.id}`}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                </Button>
+                <Button
                   onClick={() => handleDeleteRecording(recording.id)}
                   data-testid={`delete-recording-${recording.id}`}
                   variant="outline"
