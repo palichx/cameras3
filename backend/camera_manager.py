@@ -154,8 +154,8 @@ class CameraProcessor:
             
             height, width = self.last_frame.shape[:2]
             
-            # Initialize video writer with better codec
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # MPEG-4 codec (более универсальный)
+            # Initialize video writer - use X264 for better browser compatibility
+            fourcc = cv2.VideoWriter_fourcc(*'X264')
             fps = self.profile.target_fps
             self.video_writer = cv2.VideoWriter(str(filepath), fourcc, fps, (width, height))
             
