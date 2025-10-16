@@ -190,8 +190,8 @@ async def get_recording(recording_id: str):
     return recording
 
 @api_router.get("/recordings/{recording_id}/video")
-async def get_recording_video(recording_id: str):
-    """Stream recording video"""
+async def get_recording_video(recording_id: str, request: Request):
+    """Stream recording video with range support"""
     recording = await db.recordings.find_one({"id": recording_id}, {"_id": 0})
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
@@ -200,11 +200,53 @@ async def get_recording_video(recording_id: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    return FileResponse(
-        path=str(file_path),
-        media_type="video/mp4",
-        filename=f"{recording['camera_name']}_{recording['start_time'].replace(':', '-')}.mp4"
-    )
+    # Get file size
+    file_size = file_path.stat().st_size
+    
+    # Parse Range header
+    range_header = request.headers.get("range")
+    
+    if range_header:
+        # Parse range header (e.g., "bytes=0-1023")
+        range_match = range_header.replace("bytes=", "").split("-")
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if len(range_match) > 1 and range_match[1] else file_size - 1
+        
+        # Validate range
+        if start >= file_size or end >= file_size:
+            raise HTTPException(status_code=416, detail="Requested range not satisfiable")
+        
+        chunk_size = end - start + 1
+        
+        async def file_reader():
+            async with aiofiles.open(file_path, mode='rb') as f:
+                await f.seek(start)
+                data = await f.read(chunk_size)
+                yield data
+        
+        headers = {
+            'Content-Range': f'bytes {start}-{end}/{file_size}',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': str(chunk_size),
+            'Content-Type': 'video/mp4',
+        }
+        
+        return StreamingResponse(
+            file_reader(),
+            status_code=206,
+            headers=headers,
+            media_type="video/mp4"
+        )
+    else:
+        # No range requested, return entire file
+        return FileResponse(
+            path=str(file_path),
+            media_type="video/mp4",
+            headers={
+                'Accept-Ranges': 'bytes',
+                'Content-Length': str(file_size)
+            }
+        )
 
 @api_router.delete("/recordings/{recording_id}")
 async def delete_recording(recording_id: str):
