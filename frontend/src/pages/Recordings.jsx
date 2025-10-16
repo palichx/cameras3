@@ -16,10 +16,10 @@ const Recordings = () => {
   const [cameras, setCameras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    camera_id: '',
+    camera_id: 'all',
     start_date: '',
     end_date: '',
-    record_type: '',
+    record_type: 'all',
   });
   const [playingRecording, setPlayingRecording] = useState(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
