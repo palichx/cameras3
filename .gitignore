@@ -60,3 +60,7 @@ logs/
 
 recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251016_234144_motion.avi
 recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251016_234348_motion.avi
+-e 
+# Environment files
+*.env
+*.env.*
