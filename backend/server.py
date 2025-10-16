@@ -188,7 +188,7 @@ async def get_recording(recording_id: str):
     return recording
 
 @api_router.get("/recordings/{recording_id}/video")
-async def get_recording_video(recording_id: str, speed: Optional[float] = 1.0):
+async def get_recording_video(recording_id: str):
     """Stream recording video"""
     recording = await db.recordings.find_one({"id": recording_id}, {"_id": 0})
     if not recording:
@@ -198,7 +198,11 @@ async def get_recording_video(recording_id: str, speed: Optional[float] = 1.0):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    return FileResponse(file_path, media_type="video/mp4")
+    return FileResponse(
+        path=str(file_path),
+        media_type="video/mp4",
+        filename=f"{recording['camera_name']}_{recording['start_time'].replace(':', '-')}.mp4"
+    )
 
 @api_router.delete("/recordings/{recording_id}")
 async def delete_recording(recording_id: str):
