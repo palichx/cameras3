@@ -67,12 +67,12 @@ const CameraView = () => {
 
     ws.onclose = () => {
       console.log('WebSocket closed');
-      // Attempt to reconnect after 3 seconds
+      // Attempt to reconnect after 2 seconds
       setTimeout(() => {
         if (wsRef.current === ws) {
           connectWebSocket();
         }
-      }, 3000);
+      }, 2000);
     };
   };
 
