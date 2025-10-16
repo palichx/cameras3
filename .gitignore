@@ -31,6 +31,10 @@ yarn-error.log*
 .pnp/
 .pnp.js
 
+# Ignore root yarn.lock (only use frontend/yarn.lock)
+/yarn.lock
+/package-lock.json
+
 # Environment
 .env.local
 .env.development.local
@@ -64,3 +68,4 @@ recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251016_234348_motion.avi
 # Environment files
 *.env
 *.env.*
+recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251016_234636_motion.avi
