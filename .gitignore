@@ -75,3 +75,7 @@ docker-compose.yml
 # Environment files
 *.env
 *.env.*
+-e 
+# Environment files
+*.env
+*.env.*
