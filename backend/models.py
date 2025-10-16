@@ -17,6 +17,8 @@ class MotionSettings(BaseModel):
     mog2: MOG2Settings = Field(default_factory=MOG2Settings)
     min_area: int = Field(default=500, description="Минимальная площадь объекта")
     min_duration_seconds: int = Field(default=1, description="Игнорировать движения короче X секунд (0-10)")
+    pre_record_seconds: int = Field(default=5, description="Предзапись (сек) - запись начнется за N секунд до движения")
+    post_record_seconds: int = Field(default=10, description="Постзапись (сек) - запись продолжится N секунд после движения")
     exclusion_zones: List[List[List[int]]] = Field(
         default_factory=list,
         description="Зоны исключения из детекции [[x1,y1], [x2,y2], ...]"

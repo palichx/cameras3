@@ -11,6 +11,7 @@ from models import Camera, Recording, GlobalSettings
 import os
 from telegram import Bot
 import tempfile
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,10 @@ class CameraProcessor:
         self.motion_start_time = None
         self.motion_detected = False
         self.telegram_bot = None
+        
+        # Pre/Post recording buffer
+        self.frame_buffer = deque(maxlen=int(camera.motion.pre_record_seconds * 15))  # 15 fps buffer
+        self.post_motion_timer = 0
         
         # Get performance profile
         profile_name = settings.performance_profile
@@ -66,7 +71,7 @@ class CameraProcessor:
                 logger.error(f"Failed to open camera {self.camera.id}")
                 return False
             
-            # Set buffer size to minimize latency
+            # Set buffer size to minimize latency - smaller buffer = less delay
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             
             logger.info(f"Connected to camera {self.camera.id} - {self.camera.name}")
@@ -149,10 +154,15 @@ class CameraProcessor:
             
             height, width = self.last_frame.shape[:2]
             
-            # Initialize video writer
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            # Initialize video writer with better codec
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
             fps = self.profile.target_fps
             self.video_writer = cv2.VideoWriter(str(filepath), fourcc, fps, (width, height))
+            
+            # Write buffered frames (pre-record)
+            if record_type == "motion" and self.frame_buffer:
+                for buffered_frame in self.frame_buffer:
+                    self.video_writer.write(buffered_frame)
             
             # Create recording entry
             recording = Recording(
@@ -274,6 +284,10 @@ class CameraProcessor:
             frame = self.resize_frame(frame)
             self.last_frame = frame.copy()
             
+            # Add to buffer for pre-recording
+            if self.camera.motion.enabled and self.camera.recording.on_motion:
+                self.frame_buffer.append(frame.copy())
+            
             # Detect motion if enabled
             if self.camera.motion.enabled:
                 motion = self.detect_motion(frame)
@@ -283,6 +297,7 @@ class CameraProcessor:
                         # Motion started
                         self.motion_detected = True
                         self.motion_start_time = datetime.now(timezone.utc)
+                        self.post_motion_timer = 0
                         
                         # Send Telegram alert
                         if self.camera.telegram.send_alerts:
@@ -291,17 +306,27 @@ class CameraProcessor:
                         # Start motion recording
                         if self.camera.recording.on_motion:
                             await self.start_recording("motion")
+                    else:
+                        # Motion continues - reset post timer
+                        self.post_motion_timer = 0
                 else:
                     if self.motion_detected:
-                        # Check minimum duration
-                        duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
-                        if duration >= self.camera.motion.min_duration_seconds:
-                            # Valid motion ended
-                            if self.camera.recording.on_motion and self.video_writer:
-                                await self.stop_recording()
+                        # Increment post-motion timer
+                        self.post_motion_timer += 1
                         
-                        self.motion_detected = False
-                        self.motion_start_time = None
+                        # Check if post-record period is over
+                        post_frames = self.camera.motion.post_record_seconds * self.profile.target_fps
+                        if self.post_motion_timer >= post_frames:
+                            # Check minimum duration
+                            duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
+                            if duration >= self.camera.motion.min_duration_seconds:
+                                # Valid motion ended
+                                if self.camera.recording.on_motion and self.video_writer:
+                                    await self.stop_recording()
+                            
+                            self.motion_detected = False
+                            self.motion_start_time = None
+                            self.post_motion_timer = 0
             
             # Write frame to recording
             if self.video_writer:
@@ -489,4 +514,4 @@ class CameraManager:
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             
-            await asyncio.sleep(0.033)  # ~30 fps
+            await asyncio.sleep(0.05)  # Reduced delay for lower latency
