@@ -63,3 +63,7 @@ logs/
 .dockerignore
 Dockerfile
 docker-compose.yml
+-e 
+# Environment files
+*.env
+*.env.*
