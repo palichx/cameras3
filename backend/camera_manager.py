@@ -154,10 +154,13 @@ class CameraProcessor:
             
             height, width = self.last_frame.shape[:2]
             
-            # Initialize video writer - use X264 for better browser compatibility
-            fourcc = cv2.VideoWriter_fourcc(*'X264')
+            # Initialize video writer - use MJPEG for compatibility
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
             fps = self.profile.target_fps
-            self.video_writer = cv2.VideoWriter(str(filepath), fourcc, fps, (width, height))
+            self.video_writer = cv2.VideoWriter(str(filepath.with_suffix('.avi')), fourcc, fps, (width, height))
+            
+            # Update file path to .avi
+            filepath = filepath.with_suffix('.avi')
             
             # Write buffered frames (pre-record)
             if record_type == "motion" and self.frame_buffer:
