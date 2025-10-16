@@ -189,6 +189,7 @@ async def get_recording(recording_id: str):
         raise HTTPException(status_code=404, detail="Recording not found")
     return recording
 
+@api_router.head("/recordings/{recording_id}/video")
 @api_router.get("/recordings/{recording_id}/video")
 async def get_recording_video(recording_id: str, request: Request):
     """Stream recording video with range support"""
@@ -202,6 +203,16 @@ async def get_recording_video(recording_id: str, request: Request):
     
     # Get file size
     file_size = file_path.stat().st_size
+    
+    # For HEAD requests, just return headers
+    if request.method == "HEAD":
+        return Response(
+            headers={
+                'Accept-Ranges': 'bytes',
+                'Content-Length': str(file_size),
+                'Content-Type': 'video/mp4',
+            }
+        )
     
     # Parse Range header
     range_header = request.headers.get("range")
