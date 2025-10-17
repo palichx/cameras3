@@ -61,12 +61,12 @@
 
 **Backend:**
 - FastAPI
-- OpenCV (cv2)
+- OpenCV (cv2) для обработки видео
 - MOG2 алгоритм детекции движения
 - Motor (async MongoDB)
-- WebSocket
+- WebSocket для live streaming
 - Python Telegram Bot
-- FFmpeg
+- FFmpeg для конвертации видео
 
 **Frontend:**
 - React 19
@@ -77,6 +77,10 @@
 
 **Database:**
 - MongoDB
+
+**Deployment:**
+- Docker & Docker Compose
+- Ubuntu 22.04 base (для совместимости OpenCV)
 
 ## Установка с Docker
 
