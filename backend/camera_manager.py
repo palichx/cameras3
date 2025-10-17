@@ -61,7 +61,7 @@ class CameraProcessor:
                 logger.error(f"Failed to initialize Telegram bot: {e}")
     
     async def connect(self) -> bool:
-        """Connect to camera stream"""
+        """Connect to camera stream using FFmpeg"""
         try:
             # Build URL with credentials if provided
             url = self.camera.url
@@ -71,20 +71,97 @@ class CameraProcessor:
                     protocol, rest = url.split('://', 1)
                     url = f"{protocol}://{self.camera.username}:{self.camera.password}@{rest}"
             
-            self.cap = cv2.VideoCapture(url)
-            if not self.cap.isOpened():
-                logger.error(f"Failed to open camera {self.camera.id}")
+            # First, probe the stream to get dimensions
+            probe_success = await self._probe_stream(url)
+            if not probe_success:
+                logger.error(f"Failed to probe camera stream {self.camera.id}")
                 return False
             
-            # Set buffer size to minimize latency - smaller buffer = less delay
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Start FFmpeg process
+            self.ffmpeg_process = await self._start_ffmpeg(url)
+            if not self.ffmpeg_process:
+                logger.error(f"Failed to start FFmpeg for camera {self.camera.id}")
+                return False
             
-            logger.info(f"Connected to camera {self.camera.id} - {self.camera.name}")
+            logger.info(f"Connected to camera {self.camera.id} - {self.camera.name} via FFmpeg ({self.frame_width}x{self.frame_height})")
             return True
         
         except Exception as e:
             logger.error(f"Error connecting to camera {self.camera.id}: {e}")
             return False
+    
+    async def _probe_stream(self, url: str) -> bool:
+        """Probe stream to get video dimensions"""
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height',
+                '-of', 'csv=p=0',
+                '-rtsp_transport', 'tcp',
+                url
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+            
+            if process.returncode == 0 and stdout:
+                dimensions = stdout.decode().strip().split(',')
+                if len(dimensions) == 2:
+                    self.frame_width = int(dimensions[0])
+                    self.frame_height = int(dimensions[1])
+                    
+                    # Apply resolution limit from profile
+                    if self.frame_width > self.profile.max_resolution_width:
+                        ratio = self.profile.max_resolution_width / self.frame_width
+                        self.frame_width = self.profile.max_resolution_width
+                        self.frame_height = int(self.frame_height * ratio)
+                    
+                    self.frame_size = self.frame_width * self.frame_height * 3  # BGR
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error probing stream: {e}")
+            return False
+    
+    async def _start_ffmpeg(self, url: str):
+        """Start FFmpeg process for frame extraction"""
+        try:
+            cmd = [
+                'ffmpeg',
+                '-rtsp_transport', 'tcp',  # TCP for stability
+                '-i', url,
+                '-f', 'rawvideo',
+                '-pix_fmt', 'bgr24',
+                '-an',  # No audio
+                '-fflags', 'nobuffer',  # Minimal buffering
+                '-flags', 'low_delay',
+                '-probesize', '32',
+                '-analyzeduration', '0',
+                '-vf', f'scale={self.frame_width}:{self.frame_height}',
+                '-r', str(self.profile.target_fps),  # Target FPS
+                'pipe:1'
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+            
+            return process
+            
+        except Exception as e:
+            logger.error(f"Error starting FFmpeg: {e}")
+            return None
     
     def resize_frame(self, frame):
         """Resize frame based on performance profile"""
