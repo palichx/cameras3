@@ -555,8 +555,19 @@ class CameraProcessor:
     async def stop(self):
         """Stop processing"""
         self.running = False
-        if self.cap:
-            self.cap.release()
+        
+        # Terminate FFmpeg process
+        if self.ffmpeg_process:
+            try:
+                self.ffmpeg_process.terminate()
+                await asyncio.wait_for(self.ffmpeg_process.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                self.ffmpeg_process.kill()
+                await self.ffmpeg_process.wait()
+            except Exception as e:
+                logger.error(f"Error stopping FFmpeg: {e}")
+        
+        # Stop recording
         if self.video_writer:
             await self.stop_recording()
 
