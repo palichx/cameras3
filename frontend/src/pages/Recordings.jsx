@@ -46,10 +46,19 @@ const Recordings = () => {
   const fetchRecordings = async () => {
     try {
       const params = {};
-      if (filters.camera_id && filters.camera_id !== 'all') params.camera_id = filters.camera_id;
-      if (filters.start_date) params.start_date = filters.start_date;
-      if (filters.end_date) params.end_date = filters.end_date;
-      if (filters.record_type && filters.record_type !== 'all') params.record_type = filters.record_type;
+      // Only add filter if it's not 'all' or empty
+      if (filters.camera_id && filters.camera_id !== 'all' && filters.camera_id !== '') {
+        params.camera_id = filters.camera_id;
+      }
+      if (filters.start_date) {
+        params.start_date = filters.start_date;
+      }
+      if (filters.end_date) {
+        params.end_date = filters.end_date;
+      }
+      if (filters.record_type && filters.record_type !== 'all' && filters.record_type !== '') {
+        params.record_type = filters.record_type;
+      }
 
       const response = await axios.get(`${API}/recordings`, { params });
       setRecordings(response.data);
