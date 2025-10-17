@@ -41,8 +41,7 @@ const CameraView = () => {
   };
 
   const connectWebSocket = () => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/api/live/${id}`;
+    const wsUrl = `${WS_BASE_URL}/api/live/${id}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
