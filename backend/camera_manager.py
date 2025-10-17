@@ -397,8 +397,7 @@ class CameraProcessor:
     async def process_frame(self, frame, check_motion=True):
         """Process a single frame"""
         try:
-            # Resize frame
-            frame = self.resize_frame(frame)
+            # Frame is already resized by FFmpeg
             # Store frame for live view (must copy to avoid race conditions)
             self.last_frame = frame.copy()
             
