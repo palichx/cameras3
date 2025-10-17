@@ -454,7 +454,7 @@ class CameraProcessor:
             logger.error(f"Error processing frame: {e}")
     
     async def run(self):
-        """Main processing loop"""
+        """Main processing loop with FFmpeg"""
         try:
             self.running = True
             
@@ -462,41 +462,53 @@ class CameraProcessor:
             if self.camera.recording.continuous:
                 await self.start_recording("continuous")
             
-            # Use motion check interval from profile for optimization
-            frame_interval = 1.0 / self.profile.target_fps
             # Convert motion check interval from seconds to frames
             motion_check_interval_frames = max(1, int(self.profile.motion_check_interval * self.profile.target_fps))
             frame_counter = 0
+            reconnect_attempts = 0
+            max_reconnects = 5
             
-            logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
+            logger.info(f"Starting FFmpeg frame processing loop for camera {self.camera.name}, resolution: {self.frame_width}x{self.frame_height}")
             
             while self.running:
                 try:
-                    # Try to read frame with retry mechanism
-                    ret = False
-                    frame = None
-                    retries = 3
-                    
-                    for attempt in range(retries):
-                        # Clear buffer with grab() before read()
-                        self.cap.grab()
-                        ret, frame = self.cap.read()
+                    # Check if FFmpeg process is alive
+                    if not self.ffmpeg_process or self.ffmpeg_process.returncode is not None:
+                        logger.warning(f"FFmpeg process died for camera {self.camera.name}, attempting reconnect ({reconnect_attempts}/{max_reconnects})")
                         
-                        if ret:
+                        if reconnect_attempts >= max_reconnects:
+                            logger.error(f"Max reconnection attempts reached for camera {self.camera.name}")
                             break
-                        else:
-                            if attempt < retries - 1:
-                                await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                        
+                        # Reconnect
+                        url = self.camera.url
+                        if self.camera.username and self.camera.password:
+                            if '://' in url:
+                                protocol, rest = url.split('://', 1)
+                                url = f"{protocol}://{self.camera.username}:{self.camera.password}@{rest}"
+                        
+                        self.ffmpeg_process = await self._start_ffmpeg(url)
+                        if not self.ffmpeg_process:
+                            await asyncio.sleep(5)
+                            reconnect_attempts += 1
+                            continue
+                        
+                        reconnect_attempts = 0
+                        logger.info(f"Successfully reconnected camera {self.camera.name}")
                     
-                    if not ret:
-                        if frame_counter % 30 == 0:  # Log every 30 failures
-                            logger.warning(f"Failed to read frame from camera {self.camera.name} after {retries} retries")
-                        await asyncio.sleep(1)
-                        frame_counter += 1
+                    # Read raw frame from FFmpeg stdout
+                    raw_frame = await self.ffmpeg_process.stdout.read(self.frame_size)
+                    
+                    if not raw_frame or len(raw_frame) != self.frame_size:
+                        logger.warning(f"Incomplete frame read from camera {self.camera.name}")
+                        await asyncio.sleep(0.1)
                         continue
                     
+                    # Convert raw bytes to numpy array
+                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((self.frame_height, self.frame_width, 3))
+                    
                     # Log first few frames
-                    if frame_counter < 5:
+                    if frame_counter < 3:
                         logger.info(f"Processing frame {frame_counter} for camera {self.camera.name}")
                     
                     # Process frame with motion detection only every N frames to reduce CPU
@@ -508,10 +520,12 @@ class CameraProcessor:
                         await self.start_recording("continuous")
                     
                     frame_counter += 1
-                    await asyncio.sleep(frame_interval)
                 
+                except asyncio.CancelledError:
+                    logger.info(f"Camera processing cancelled for {self.camera.name}")
+                    break
                 except Exception as e:
-                    logger.error(f"Error in camera loop: {e}")
+                    logger.error(f"Error in camera loop for {self.camera.name}: {e}")
                     await asyncio.sleep(1)
         
         except Exception as e:
