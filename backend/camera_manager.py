@@ -111,19 +111,28 @@ class CameraProcessor:
         if not self.mog2:
             return False
         
+        # Use adaptive learning rate for better performance
+        learning_rate = self.camera.motion.mog2.learning_rate
+        if learning_rate == -1:
+            # Auto mode: use faster learning rate for performance
+            learning_rate = 0.01
+        
         # Apply MOG2
-        fg_mask = self.mog2.apply(frame, learningRate=self.camera.motion.mog2.learning_rate)
+        fg_mask = self.mog2.apply(frame, learningRate=learning_rate)
         
         # Apply exclusion zones
         fg_mask = self.apply_exclusion_zones(fg_mask)
         
-        # Morphological operations to reduce noise
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        # Simplified morphological operations for performance
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))  # Smaller kernel
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel, iterations=1)
         
-        # Find contours
+        # Find contours - use simpler approximation
         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Quick check: if total white pixels is low, no motion
+        if cv2.countNonZero(fg_mask) < self.camera.motion.min_area:
+            return False
         
         # Check if any contour is large enough
         for contour in contours:
