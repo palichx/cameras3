@@ -396,7 +396,7 @@ class CameraProcessor:
                         logger.info(f"Processing frame {frame_counter} for camera {self.camera.name}")
                     
                     # Process frame with motion detection only every N frames to reduce CPU
-                    check_motion_this_frame = (frame_counter % motion_check_interval == 0)
+                    check_motion_this_frame = (frame_counter % motion_check_interval_frames == 0)
                     await self.process_frame(frame, check_motion=check_motion_this_frame)
                     
                     # For continuous recording, ensure writer is always active
