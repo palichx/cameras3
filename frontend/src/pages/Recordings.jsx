@@ -37,6 +37,7 @@ const Recordings = () => {
   const fetchCameras = async () => {
     try {
       const response = await axios.get(`${API}/cameras`);
+      console.log('Cameras loaded:', response.data);
       setCameras(response.data);
     } catch (error) {
       console.error('Error fetching cameras:', error);
