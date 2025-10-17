@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 COPY . .
 RUN ls -la && echo "=== Checking files ===" && test -f package.json && echo "package.json OK" && test -f yarn.lock && echo "yarn.lock OK"
