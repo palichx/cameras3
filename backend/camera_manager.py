@@ -662,7 +662,7 @@ class CameraManager:
             await self.stop_camera(camera_id)
     
     async def test_connection(self, camera: Camera) -> dict:
-        """Test camera connection"""
+        """Test camera connection using FFprobe"""
         try:
             url = camera.url
             if camera.username and camera.password:
@@ -670,17 +670,42 @@ class CameraManager:
                     protocol, rest = url.split('://', 1)
                     url = f"{protocol}://{camera.username}:{camera.password}@{rest}"
             
-            cap = cv2.VideoCapture(url)
-            if not cap.isOpened():
-                return {"success": False, "message": "Не удалось подключиться к камере"}
+            # Use ffprobe to test connection
+            cmd = [
+                'ffprobe',
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height,codec_name',
+                '-of', 'json',
+                '-rtsp_transport', 'tcp',
+                url
+            ]
             
-            ret, frame = cap.read()
-            cap.release()
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
             
-            if not ret:
-                return {"success": False, "message": "Не удалось получить кадр с камеры"}
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+            except asyncio.TimeoutError:
+                return {"success": False, "message": "Timeout при подключении к камере"}
             
-            return {"success": True, "message": "Подключение успешно", "frame_size": frame.shape}
+            if process.returncode == 0 and stdout:
+                import json
+                data = json.loads(stdout.decode())
+                if 'streams' in data and len(data['streams']) > 0:
+                    stream = data['streams'][0]
+                    return {
+                        "success": True,
+                        "message": "Подключение успешно",
+                        "resolution": f"{stream.get('width')}x{stream.get('height')}",
+                        "codec": stream.get('codec_name')
+                    }
+            
+            error_msg = stderr.decode() if stderr else "Неизвестная ошибка"
+            return {"success": False, "message": f"Не удалось подключиться: {error_msg[:100]}"}
         
         except Exception as e:
             return {"success": False, "message": f"Ошибка: {str(e)}"}
