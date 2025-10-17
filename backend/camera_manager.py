@@ -326,4 +326,10 @@ class CameraManager:
                         "resolution": f"{stream.get('width')}x{stream.get('height')}",
                         "codec": stream.get('codec_name')
                     }
+            
+            error_msg = stderr.decode() if stderr else "Неизвестная ошибка"
+            return {"success": False, "message": f"Не удалось подключиться: {error_msg[:100]}"}
+        
+        except Exception as e:
+            return {"success": False, "message": f"Ошибка: {str(e)}"}
  
