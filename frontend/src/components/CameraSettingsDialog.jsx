@@ -10,8 +10,9 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { API_BASE_URL } from '@/config';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${API_BASE_URL}/api`;
 
 const CameraSettingsDialog = ({ camera, open, onClose, onSave }) => {
   const [settings, setSettings] = useState({
