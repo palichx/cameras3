@@ -111,11 +111,11 @@ user_problem_statement: |
 backend:
   - task: "Fix continuous recording"
     implemented: true
-    working: false
+    working: true
     file: "backend/camera_manager.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -123,6 +123,21 @@ backend:
       - working: false
         agent: "main"
         comment: "Fixed logic in camera_manager.py - separated continuous and motion recording modes. Continuous recording now stays active and doesn't get stopped by motion detection logic."
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: Continuous recording fix is working correctly. Created comprehensive backend tests that confirm: 1) Continuous recording starts when camera is activated, 2) Video files are created in storage path with proper content (91MB+ files), 3) Continuous recording is NOT stopped by motion detection logic, 4) Recordings are saved to MongoDB with correct metadata (record_type='continuous'). All API endpoints working properly."
+  
+  - task: "Recording filters API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "VERIFIED: All recording filter APIs working correctly. Tested: 1) GET /api/recordings without filters returns all recordings (96 found), 2) Filter by camera_id works correctly, 3) Filter by record_type works (continuous=1, motion=95), 4) Filter by date range works (45 recordings in last hour), 5) Combined filters work correctly, 6) Invalid filters return empty results as expected. All filter combinations tested successfully."
 
 frontend:
   - task: "Fix recording filters"
