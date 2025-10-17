@@ -16,7 +16,7 @@ from collections import deque
 logger = logging.getLogger(__name__)
 
 class CameraProcessor:
-    """Processes a single camera stream using FFmpeg"""
+    """Simple camera stream processor using FFmpeg - Live view only"""
     
     def __init__(self, camera: Camera, db, settings: GlobalSettings):
         self.camera = camera
@@ -24,41 +24,16 @@ class CameraProcessor:
         self.settings = settings
         self.ffmpeg_process = None
         self.running = False
-        self.mog2 = None
-        self.current_recording = None
-        self.video_writer = None
         self.last_frame = None
-        self.motion_start_time = None
-        self.motion_detected = False
-        self.telegram_bot = None
         
         # FFmpeg frame reading
         self.frame_width = None
         self.frame_height = None
         self.frame_size = None
         
-        # Pre/Post recording buffer
-        self.frame_buffer = deque(maxlen=int(camera.motion.pre_record_seconds * 15))  # 15 fps buffer
-        self.post_motion_timer = 0
-        
         # Get performance profile
         profile_name = settings.performance_profile
         self.profile = settings.profiles.get(profile_name, settings.profiles['medium'])
-        
-        # Initialize MOG2 if motion detection enabled
-        if camera.motion.enabled:
-            self.mog2 = cv2.createBackgroundSubtractorMOG2(
-                history=camera.motion.mog2.history,
-                varThreshold=camera.motion.mog2.var_threshold,
-                detectShadows=camera.motion.mog2.detect_shadows
-            )
-        
-        # Initialize Telegram bot
-        if settings.telegram_bot_token:
-            try:
-                self.telegram_bot = Bot(token=settings.telegram_bot_token)
-            except Exception as e:
-                logger.error(f"Failed to initialize Telegram bot: {e}")
     
     async def connect(self) -> bool:
         """Connect to camera stream using FFmpeg"""
