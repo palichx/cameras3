@@ -132,7 +132,7 @@ class CameraProcessor:
     # No run() or process_frame() needed - FFmpeg streams directly to HTTP endpoint
     
     async def get_stream(self):
-        """Get MJPEG stream generator from FFmpeg stdout"""
+        """Get MJPEG stream with proper multipart boundaries"""
         if not self.ffmpeg_process:
             logger.error(f"FFmpeg process not started for camera {self.camera.name}")
             return
@@ -140,16 +140,41 @@ class CameraProcessor:
         try:
             logger.info(f"Starting MJPEG stream for camera {self.camera.name}")
             
+            # Read and parse MJPEG frames from FFmpeg
+            buffer = b''
+            
             while True:
-                # Read MJPEG frame from FFmpeg
-                # MJPEG format: each frame starts with FFD8 (JPEG SOI marker)
-                chunk = await self.ffmpeg_process.stdout.read(65536)  # 64KB chunks
+                # Read chunk from FFmpeg
+                chunk = await self.ffmpeg_process.stdout.read(8192)
                 
                 if not chunk:
                     logger.warning(f"Stream ended for camera {self.camera.name}")
                     break
                 
-                yield chunk
+                buffer += chunk
+                
+                # Find JPEG frames (start with FFD8, end with FFD9)
+                while True:
+                    # Find start of JPEG
+                    start = buffer.find(b'\xff\xd8')
+                    if start == -1:
+                        break
+                    
+                    # Find end of JPEG
+                    end = buffer.find(b'\xff\xd9', start + 2)
+                    if end == -1:
+                        break
+                    
+                    # Extract JPEG frame
+                    jpeg_frame = buffer[start:end + 2]
+                    buffer = buffer[end + 2:]
+                    
+                    # Yield frame with multipart boundary
+                    yield (
+                        b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n' +
+                        jpeg_frame + b'\r\n'
+                    )
                 
         except Exception as e:
             logger.error(f"Error streaming from camera {self.camera.name}: {e}")
@@ -301,11 +326,4 @@ class CameraManager:
                         "resolution": f"{stream.get('width')}x{stream.get('height')}",
                         "codec": stream.get('codec_name')
                     }
-            
-            error_msg = stderr.decode() if stderr else "Неизвестная ошибка"
-            return {"success": False, "message": f"Не удалось подключиться: {error_msg[:100]}"}
-        
-        except Exception as e:
-            return {"success": False, "message": f"Ошибка: {str(e)}"}
-    
-    # get_live_stream removed - streaming now handled directly by HTTP endpoint
+ 

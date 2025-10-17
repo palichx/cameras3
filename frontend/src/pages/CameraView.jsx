@@ -86,18 +86,19 @@ const CameraView = () => {
         </div>
       </div>
 
-      {/* Live View */}
+      {/* Live View - Direct MJPEG Stream */}
       <div className="flex-1 flex items-center justify-center p-4" data-testid="live-view-container">
-        {liveFrame ? (
+        {camera && camera.status === 'active' ? (
           <img
-            src={`data:image/jpeg;base64,${liveFrame}`}
+            src={`${API}/live/${id}`}
             alt="Live feed"
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
           />
         ) : (
           <div className="text-center">
-            <div className="spinner mx-auto mb-4"></div>
-            <p className="text-[var(--text-secondary)]">Загрузка видео...</p>
+            <p className="text-[var(--text-secondary)]">
+              {camera?.status === 'active' ? 'Загрузка видео...' : 'Камера не активна'}
+            </p>
           </div>
         )}
       </div>
