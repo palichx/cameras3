@@ -9,8 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import CameraSettingsDialog from '@/components/CameraSettingsDialog';
+import { API_BASE_URL } from '@/config';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${API_BASE_URL}/api`;
 
 const Dashboard = () => {
   const navigate = useNavigate();
