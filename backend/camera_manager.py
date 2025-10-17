@@ -306,8 +306,8 @@ class CameraProcessor:
                         if self.camera.telegram.send_alerts:
                             asyncio.create_task(self.send_telegram_alert())
                         
-                        # Start motion recording
-                        if self.camera.recording.on_motion:
+                        # Start motion recording only if not in continuous mode
+                        if self.camera.recording.on_motion and not self.camera.recording.continuous:
                             await self.start_recording("motion")
                     else:
                         # Motion continues - reset post timer
@@ -323,8 +323,8 @@ class CameraProcessor:
                             # Check minimum duration
                             duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
                             if duration >= self.camera.motion.min_duration_seconds:
-                                # Valid motion ended
-                                if self.camera.recording.on_motion and self.video_writer:
+                                # Valid motion ended - stop only motion recordings, not continuous
+                                if self.camera.recording.on_motion and not self.camera.recording.continuous and self.video_writer:
                                     await self.stop_recording()
                             
                             self.motion_detected = False
