@@ -90,7 +90,8 @@ class CameraProcessor:
             ratio = max_width / width
             new_width = max_width
             new_height = int(height * ratio)
-            frame = cv2.resize(frame, (new_width, new_height))
+            # Use faster interpolation method for performance
+            frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
         
         return frame
     
