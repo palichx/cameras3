@@ -109,9 +109,15 @@ docker-compose logs -f
 ```
 
 ### Доступ
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:3000 (или IP сервера в сети)
 - **Backend API**: http://localhost:8001
 - **MongoDB**: localhost:27017
+
+**Для локальной сети:** Замените `localhost` на IP адрес сервера, например:
+- Frontend: http://192.168.1.100:3000
+- Backend автоматически определится как http://192.168.1.100:8001
+
+Приложение работает **без интернета** и с **любым hostname**.
 
 ### Остановка
 ```bash
