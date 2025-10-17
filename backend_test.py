@@ -369,16 +369,25 @@ class VideoSurveillanceAPITester:
         """Clean up test cameras and recordings"""
         print("\n=== Cleaning Up Test Data ===")
         
-        # Delete test cameras
+        # Only delete cameras we created (not existing ones)
+        cameras_to_delete = []
         for camera in self.test_cameras:
+            camera_name = camera.get('name', '')
+            if 'Test Camera' in camera_name or 'API Testing' in camera_name:
+                cameras_to_delete.append(camera)
+        
+        for camera in cameras_to_delete:
             try:
                 async with self.session.delete(f"{BACKEND_URL}/cameras/{camera['id']}") as resp:
                     if resp.status == 200:
-                        print(f"Deleted test camera: {camera['name']}")
+                        print(f"Deleted test camera: {camera.get('name', camera['id'])}")
                     else:
-                        print(f"Failed to delete camera {camera['name']}: Status {resp.status}")
+                        print(f"Failed to delete camera {camera.get('name', camera['id'])}: Status {resp.status}")
             except Exception as e:
-                print(f"Exception deleting camera {camera['name']}: {str(e)}")
+                print(f"Exception deleting camera {camera.get('name', camera['id'])}: {str(e)}")
+        
+        if not cameras_to_delete:
+            print("No test cameras to delete (using existing cameras for testing)")
 
     def print_summary(self):
         """Print test summary"""
