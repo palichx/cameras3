@@ -359,12 +359,14 @@ async def get_stats():
 # Include the router in the main app
 app.include_router(api_router)
 
+# CORS - разрешить ВСЕ источники для локальной сети
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],  # Разрешить все источники
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Разрешить все методы
+    allow_headers=["*"],  # Разрешить все заголовки
+    expose_headers=["*"],  # Открыть все заголовки
 )
 
 @app.on_event("startup")
