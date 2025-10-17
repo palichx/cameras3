@@ -362,6 +362,8 @@ class CameraProcessor:
         motion_check_interval = self.profile.motion_check_interval_frames
         frame_counter = 0
         
+        logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
+        
         while self.running:
             try:
                 # Try to read frame with retry mechanism
