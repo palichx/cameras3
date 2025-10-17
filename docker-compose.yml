@@ -39,8 +39,6 @@ services:
       dockerfile: Dockerfile
     container_name: secureview-frontend
     restart: unless-stopped
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
     ports:
       - "3000:3000"
     depends_on:
