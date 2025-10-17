@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Settings, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import CameraSettingsDialog from '@/components/CameraSettingsDialog';
-import { API_BASE_URL, WS_BASE_URL } from '@/config';
+import { API_BASE_URL } from '@/config';
 
 const API = `${API_BASE_URL}/api`;
 
@@ -15,18 +15,9 @@ const CameraView = () => {
   const [camera, setCamera] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [liveFrame, setLiveFrame] = useState(null);
-  const wsRef = useRef(null);
 
   useEffect(() => {
     fetchCamera();
-    connectWebSocket();
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
   }, [id]);
 
   const fetchCamera = async () => {
@@ -38,42 +29,6 @@ const CameraView = () => {
       toast.error('Ошибка загрузки камеры');
       navigate('/');
     }
-  };
-
-  const connectWebSocket = () => {
-    const wsUrl = `${WS_BASE_URL}/api/live/${id}`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.frame) {
-          setLiveFrame(data.frame);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-      // Attempt to reconnect after 2 seconds
-      setTimeout(() => {
-        if (wsRef.current === ws) {
-          connectWebSocket();
-        }
-      }, 2000);
-    };
   };
 
   if (loading) {
