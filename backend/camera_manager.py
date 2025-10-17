@@ -280,19 +280,19 @@ class CameraProcessor:
         except Exception as e:
             logger.error(f"Error sending Telegram video: {e}")
     
-    async def process_frame(self, frame):
+    async def process_frame(self, frame, check_motion=True):
         """Process a single frame"""
         try:
             # Resize frame
             frame = self.resize_frame(frame)
-            self.last_frame = frame.copy()
+            self.last_frame = frame
             
-            # Add to buffer for pre-recording
-            if self.camera.motion.enabled and self.camera.recording.on_motion:
+            # Add to buffer for pre-recording (only if motion enabled and we're checking motion this frame)
+            if self.camera.motion.enabled and self.camera.recording.on_motion and check_motion:
                 self.frame_buffer.append(frame.copy())
             
-            # Detect motion if enabled
-            if self.camera.motion.enabled:
+            # Detect motion if enabled and this frame should be checked
+            if self.camera.motion.enabled and check_motion:
                 motion = self.detect_motion(frame)
                 
                 if motion:
@@ -317,8 +317,8 @@ class CameraProcessor:
                         # Increment post-motion timer
                         self.post_motion_timer += 1
                         
-                        # Check if post-record period is over
-                        post_frames = self.camera.motion.post_record_seconds * self.profile.target_fps
+                        # Check if post-record period is over (adjust for motion check interval)
+                        post_frames = (self.camera.motion.post_record_seconds * self.profile.target_fps) // self.profile.motion_check_interval_frames
                         if self.post_motion_timer >= post_frames:
                             # Check minimum duration
                             duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
