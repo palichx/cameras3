@@ -357,6 +357,11 @@ class CameraProcessor:
                     continue
                 
                 await self.process_frame(frame)
+                
+                # For continuous recording, ensure writer is always active
+                if self.camera.recording.continuous and not self.video_writer:
+                    await self.start_recording("continuous")
+                
                 await asyncio.sleep(frame_interval)
             
             except Exception as e:
