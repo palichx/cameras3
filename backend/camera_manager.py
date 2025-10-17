@@ -10,20 +10,17 @@ from models import Camera, GlobalSettings
 logger = logging.getLogger(__name__)
 
 class CameraProcessor:
-    """Simple camera stream processor using FFmpeg - Live view only"""
+    """FFmpeg MJPEG stream processor - Direct video stream"""
     
     def __init__(self, camera: Camera, db, settings: GlobalSettings):
         self.camera = camera
         self.db = db
         self.settings = settings
         self.ffmpeg_process = None
-        self.running = False
-        self.last_frame = None
         
-        # FFmpeg frame reading
+        # Stream dimensions
         self.frame_width = None
         self.frame_height = None
-        self.frame_size = None
         
         # Get performance profile
         profile_name = settings.performance_profile
