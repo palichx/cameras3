@@ -129,88 +129,30 @@ class CameraProcessor:
             logger.error(f"Error starting FFmpeg: {e}")
             return None
     
-    # All recording, motion detection, and Telegram methods removed - live view only
+    # No run() or process_frame() needed - FFmpeg streams directly to HTTP endpoint
     
-    async def process_frame(self, frame):
-        """Store frame for live view - no processing"""
-        try:
-            # Simply store frame for live view (copy to avoid race conditions)
-            self.last_frame = frame.copy()
+    async def get_stream(self):
+        """Get MJPEG stream generator from FFmpeg stdout"""
+        if not self.ffmpeg_process:
+            logger.error(f"FFmpeg process not started for camera {self.camera.name}")
+            return
         
-        except Exception as e:
-            logger.error(f"Error storing frame: {e}")
-    
-    async def run(self):
-        """Simple live view loop with FFmpeg - no recording, no processing"""
         try:
-            self.running = True
-            frame_counter = 0
-            reconnect_attempts = 0
-            max_reconnects = 5
+            logger.info(f"Starting MJPEG stream for camera {self.camera.name}")
             
-            logger.info(f"Starting FFmpeg live stream for camera {self.camera.name}, resolution: {self.frame_width}x{self.frame_height}")
-            
-            while self.running:
-                try:
-                    # Check if FFmpeg process is alive
-                    if not self.ffmpeg_process or self.ffmpeg_process.returncode is not None:
-                        logger.warning(f"FFmpeg process died for camera {self.camera.name}, attempting reconnect ({reconnect_attempts}/{max_reconnects})")
-                        
-                        if reconnect_attempts >= max_reconnects:
-                            logger.error(f"Max reconnection attempts reached for camera {self.camera.name}")
-                            break
-                        
-                        # Reconnect
-                        url = self.camera.url
-                        if self.camera.username and self.camera.password:
-                            if '://' in url:
-                                protocol, rest = url.split('://', 1)
-                                url = f"{protocol}://{self.camera.username}:{self.camera.password}@{rest}"
-                        
-                        self.ffmpeg_process = await self._start_ffmpeg(url)
-                        if not self.ffmpeg_process:
-                            await asyncio.sleep(5)
-                            reconnect_attempts += 1
-                            continue
-                        
-                        reconnect_attempts = 0
-                        logger.info(f"Successfully reconnected camera {self.camera.name}")
-                    
-                    # Read raw frame from FFmpeg stdout (read until we have full frame)
-                    raw_frame = b''
-                    while len(raw_frame) < self.frame_size:
-                        chunk = await self.ffmpeg_process.stdout.read(self.frame_size - len(raw_frame))
-                        if not chunk:
-                            break
-                        raw_frame += chunk
-                    
-                    if len(raw_frame) != self.frame_size:
-                        await asyncio.sleep(0.1)
-                        continue
-                    
-                    # Convert raw bytes to numpy array
-                    frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape((self.frame_height, self.frame_width, 3))
-                    
-                    # Log first few frames
-                    if frame_counter < 3:
-                        logger.info(f"Received frame {frame_counter} for camera {self.camera.name}")
-                    
-                    # Simply store frame for live view
-                    await self.process_frame(frame)
-                    
-                    frame_counter += 1
+            while True:
+                # Read MJPEG frame from FFmpeg
+                # MJPEG format: each frame starts with FFD8 (JPEG SOI marker)
+                chunk = await self.ffmpeg_process.stdout.read(65536)  # 64KB chunks
                 
-                except asyncio.CancelledError:
-                    logger.info(f"Camera processing cancelled for {self.camera.name}")
+                if not chunk:
+                    logger.warning(f"Stream ended for camera {self.camera.name}")
                     break
-                except Exception as e:
-                    logger.error(f"Error in camera loop for {self.camera.name}: {e}")
-                    await asyncio.sleep(1)
-        
+                
+                yield chunk
+                
         except Exception as e:
-            logger.error(f"Fatal error in camera run() for {self.camera.name}: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"Error streaming from camera {self.camera.name}: {e}")
     
     def get_current_frame_jpeg(self) -> Optional[str]:
         """Get current frame as base64 JPEG"""
