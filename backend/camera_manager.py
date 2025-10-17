@@ -495,11 +495,17 @@ class CameraProcessor:
                         reconnect_attempts = 0
                         logger.info(f"Successfully reconnected camera {self.camera.name}")
                     
-                    # Read raw frame from FFmpeg stdout
-                    raw_frame = await self.ffmpeg_process.stdout.read(self.frame_size)
+                    # Read raw frame from FFmpeg stdout (read until we have full frame)
+                    raw_frame = b''
+                    while len(raw_frame) < self.frame_size:
+                        chunk = await self.ffmpeg_process.stdout.read(self.frame_size - len(raw_frame))
+                        if not chunk:
+                            break
+                        raw_frame += chunk
                     
-                    if not raw_frame or len(raw_frame) != self.frame_size:
-                        logger.warning(f"Incomplete frame read from camera {self.camera.name}")
+                    if len(raw_frame) != self.frame_size:
+                        if frame_counter % 30 == 0:  # Log every 30 failures
+                            logger.warning(f"Incomplete frame read from camera {self.camera.name}: got {len(raw_frame)}/{self.frame_size} bytes")
                         await asyncio.sleep(0.1)
                         continue
                     
