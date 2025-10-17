@@ -154,21 +154,6 @@ class CameraProcessor:
         except Exception as e:
             logger.error(f"Error streaming from camera {self.camera.name}: {e}")
     
-    def get_current_frame_jpeg(self) -> Optional[str]:
-        """Get current frame as base64 JPEG"""
-        if self.last_frame is None:
-            return None
-        
-        try:
-            # Encode as JPEG
-            _, buffer = cv2.imencode('.jpg', self.last_frame, 
-                [cv2.IMWRITE_JPEG_QUALITY, self.profile.jpeg_quality])
-            jpg_base64 = base64.b64encode(buffer).decode('utf-8')
-            return jpg_base64
-        except Exception as e:
-            logger.error(f"Error encoding frame: {e}")
-            return None
-    
     async def stop(self):
         """Stop live stream"""
         self.running = False
