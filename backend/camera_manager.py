@@ -16,13 +16,13 @@ from collections import deque
 logger = logging.getLogger(__name__)
 
 class CameraProcessor:
-    """Processes a single camera stream"""
+    """Processes a single camera stream using FFmpeg"""
     
     def __init__(self, camera: Camera, db, settings: GlobalSettings):
         self.camera = camera
         self.db = db
         self.settings = settings
-        self.cap = None
+        self.ffmpeg_process = None
         self.running = False
         self.mog2 = None
         self.current_recording = None
@@ -31,6 +31,11 @@ class CameraProcessor:
         self.motion_start_time = None
         self.motion_detected = False
         self.telegram_bot = None
+        
+        # FFmpeg frame reading
+        self.frame_width = None
+        self.frame_height = None
+        self.frame_size = None
         
         # Pre/Post recording buffer
         self.frame_buffer = deque(maxlen=int(camera.motion.pre_record_seconds * 15))  # 15 fps buffer
