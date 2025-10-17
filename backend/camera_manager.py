@@ -346,7 +346,10 @@ class CameraProcessor:
         if self.camera.recording.continuous:
             await self.start_recording("continuous")
         
+        # Use motion check interval from profile for optimization
         frame_interval = 1.0 / self.profile.target_fps
+        motion_check_interval = self.profile.motion_check_interval_frames
+        frame_counter = 0
         
         while self.running:
             try:
@@ -356,12 +359,15 @@ class CameraProcessor:
                     await asyncio.sleep(1)
                     continue
                 
-                await self.process_frame(frame)
+                # Process frame with motion detection only every N frames to reduce CPU
+                check_motion_this_frame = (frame_counter % motion_check_interval == 0)
+                await self.process_frame(frame, check_motion=check_motion_this_frame)
                 
                 # For continuous recording, ensure writer is always active
                 if self.camera.recording.continuous and not self.video_writer:
                     await self.start_recording("continuous")
                 
+                frame_counter += 1
                 await asyncio.sleep(frame_interval)
             
             except Exception as e:
