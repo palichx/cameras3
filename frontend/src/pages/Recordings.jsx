@@ -163,7 +163,7 @@ const Recordings = () => {
               <SelectTrigger data-testid="filter-type" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все типы" />
               </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)]">
+              <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)] z-[9999]">
                 <SelectItem value="all">Все типы</SelectItem>
                 <SelectItem value="continuous">Непрерывная</SelectItem>
                 <SelectItem value="motion">По движению</SelectItem>
