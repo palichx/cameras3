@@ -2,16 +2,10 @@ import asyncio
 import cv2
 import numpy as np
 from datetime import datetime, timezone
-from pathlib import Path
 import logging
 import base64
 from typing import Dict, Optional, AsyncGenerator
-import aiofiles
-from models import Camera, Recording, GlobalSettings
-import os
-from telegram import Bot
-import tempfile
-from collections import deque
+from models import Camera, GlobalSettings
 
 logger = logging.getLogger(__name__)
 
