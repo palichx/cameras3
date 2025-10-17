@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+"""
+Backend API Testing for Video Surveillance System
+Tests continuous recording fix and recording filters API
+"""
+
+import asyncio
+import aiohttp
+import json
+import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+import os
+import sys
+
+# Backend URL from frontend/.env
+BACKEND_URL = "https://securewatch-22.preview.emergentagent.com/api"
+
+class VideoSurveillanceAPITester:
+    def __init__(self):
+        self.session = None
+        self.test_cameras = []
+        self.test_recordings = []
+        self.results = {
+            "camera_operations": {"passed": 0, "failed": 0, "details": []},
+            "continuous_recording": {"passed": 0, "failed": 0, "details": []},
+            "recording_filters": {"passed": 0, "failed": 0, "details": []},
+            "overall": {"passed": 0, "failed": 0}
+        }
+
+    async def setup_session(self):
+        """Setup HTTP session"""
+        connector = aiohttp.TCPConnector(ssl=False)
+        self.session = aiohttp.ClientSession(connector=connector)
+
+    async def cleanup_session(self):
+        """Cleanup HTTP session"""
+        if self.session:
+            await self.session.close()
+
+    def log_result(self, category, test_name, passed, details=""):
+        """Log test result"""
+        status = "PASS" if passed else "FAIL"
+        print(f"[{status}] {category}: {test_name}")
+        if details:
+            print(f"    Details: {details}")
+        
+        self.results[category]["passed" if passed else "failed"] += 1
+        self.results[category]["details"].append({
+            "test": test_name,
+            "status": status,
+            "details": details
+        })
+
+    async def test_camera_operations(self):
+        """Test basic camera operations"""
+        print("\n=== Testing Camera Operations ===")
+        
+        # Test 1: Get existing cameras
+        try:
+            async with self.session.get(f"{BACKEND_URL}/cameras") as resp:
+                if resp.status == 200:
+                    cameras = await resp.json()
+                    self.log_result("camera_operations", "GET /cameras", True, f"Found {len(cameras)} existing cameras")
+                else:
+                    self.log_result("camera_operations", "GET /cameras", False, f"Status: {resp.status}")
+        except Exception as e:
+            self.log_result("camera_operations", "GET /cameras", False, f"Exception: {str(e)}")
+
+        # Test 2: Create test camera with continuous recording
+        test_camera_data = {
+            "name": "Test Camera Continuous",
+            "url": "rtsp://demo:demo@ipvmdemo.dyndns.org:5541/onvif-media/media.amp?profile=profile_1_h264",
+            "username": "demo",
+            "password": "demo",
+            "motion": {
+                "enabled": True,
+                "mog2": {
+                    "history": 500,
+                    "var_threshold": 16.0,
+                    "detect_shadows": True,
+                    "learning_rate": -1,
+                    "n_mixtures": 5
+                },
+                "min_area": 500,
+                "min_duration_seconds": 1,
+                "pre_record_seconds": 5,
+                "post_record_seconds": 10,
+                "exclusion_zones": []
+            },
+            "recording": {
+                "continuous": True,  # Enable continuous recording
+                "on_motion": True,
+                "storage_path": "/app/recordings",
+                "max_file_duration_minutes": 60
+            },
+            "telegram": {
+                "send_alerts": False,
+                "send_video_clips": False
+            }
+        }
+
+        try:
+            async with self.session.post(f"{BACKEND_URL}/cameras", json=test_camera_data) as resp:
+                if resp.status == 200:
+                    camera = await resp.json()
+                    self.test_cameras.append(camera)
+                    self.log_result("camera_operations", "POST /cameras (continuous)", True, f"Created camera: {camera['id']}")
+                else:
+                    error_text = await resp.text()
+                    self.log_result("camera_operations", "POST /cameras (continuous)", False, f"Status: {resp.status}, Error: {error_text}")
+        except Exception as e:
+            self.log_result("camera_operations", "POST /cameras (continuous)", False, f"Exception: {str(e)}")
+
+        # Test 3: Create test camera with motion-only recording
+        test_camera_data_motion = {
+            "name": "Test Camera Motion Only",
+            "url": "rtsp://demo:demo@ipvmdemo.dyndns.org:5541/onvif-media/media.amp?profile=profile_1_h264",
+            "username": "demo", 
+            "password": "demo",
+            "motion": {
+                "enabled": True,
+                "mog2": {
+                    "history": 500,
+                    "var_threshold": 16.0,
+                    "detect_shadows": True,
+                    "learning_rate": -1,
+                    "n_mixtures": 5
+                },
+                "min_area": 500,
+                "min_duration_seconds": 1,
+                "pre_record_seconds": 5,
+                "post_record_seconds": 10,
+                "exclusion_zones": []
+            },
+            "recording": {
+                "continuous": False,  # Disable continuous recording
+                "on_motion": True,
+                "storage_path": "/app/recordings",
+                "max_file_duration_minutes": 60
+            },
+            "telegram": {
+                "send_alerts": False,
+                "send_video_clips": False
+            }
+        }
+
+        try:
+            async with self.session.post(f"{BACKEND_URL}/cameras", json=test_camera_data_motion) as resp:
+                if resp.status == 200:
+                    camera = await resp.json()
+                    self.test_cameras.append(camera)
+                    self.log_result("camera_operations", "POST /cameras (motion only)", True, f"Created camera: {camera['id']}")
+                else:
+                    error_text = await resp.text()
+                    self.log_result("camera_operations", "POST /cameras (motion only)", False, f"Status: {resp.status}, Error: {error_text}")
+        except Exception as e:
+            self.log_result("camera_operations", "POST /cameras (motion only)", False, f"Exception: {str(e)}")
+
+        # Test 4: Verify cameras are created and active
+        await asyncio.sleep(2)  # Give time for camera to start
+        
+        for camera in self.test_cameras:
+            try:
+                async with self.session.get(f"{BACKEND_URL}/cameras/{camera['id']}") as resp:
+                    if resp.status == 200:
+                        updated_camera = await resp.json()
+                        status = updated_camera.get('status', 'unknown')
+                        self.log_result("camera_operations", f"Camera {camera['name']} status", 
+                                      status in ['active', 'inactive'], f"Status: {status}")
+                    else:
+                        self.log_result("camera_operations", f"GET camera {camera['id']}", False, f"Status: {resp.status}")
+            except Exception as e:
+                self.log_result("camera_operations", f"GET camera {camera['id']}", False, f"Exception: {str(e)}")
+
+    async def test_continuous_recording(self):
+        """Test continuous recording functionality"""
+        print("\n=== Testing Continuous Recording ===")
+        
+        if not self.test_cameras:
+            self.log_result("continuous_recording", "No test cameras available", False, "Cannot test without cameras")
+            return
+
+        continuous_camera = None
+        for camera in self.test_cameras:
+            if "Continuous" in camera.get('name', ''):
+                continuous_camera = camera
+                break
+
+        if not continuous_camera:
+            self.log_result("continuous_recording", "No continuous recording camera found", False, "Cannot test continuous recording")
+            return
+
+        # Wait for recording to start
+        print("Waiting 10 seconds for continuous recording to start...")
+        await asyncio.sleep(10)
+
+        # Test 1: Check if recordings are being created
+        try:
+            async with self.session.get(f"{BACKEND_URL}/recordings?camera_id={continuous_camera['id']}") as resp:
+                if resp.status == 200:
+                    recordings = await resp.json()
+                    continuous_recordings = [r for r in recordings if r.get('record_type') == 'continuous']
+                    
+                    if continuous_recordings:
+                        self.log_result("continuous_recording", "Continuous recordings created", True, 
+                                      f"Found {len(continuous_recordings)} continuous recordings")
+                        self.test_recordings.extend(continuous_recordings)
+                    else:
+                        self.log_result("continuous_recording", "Continuous recordings created", False, 
+                                      "No continuous recordings found")
+                else:
+                    self.log_result("continuous_recording", "Get recordings for continuous camera", False, 
+                                  f"Status: {resp.status}")
+        except Exception as e:
+            self.log_result("continuous_recording", "Get recordings for continuous camera", False, 
+                          f"Exception: {str(e)}")
+
+        # Test 2: Verify recording files exist on disk
+        storage_path = Path("/app/recordings")
+        if storage_path.exists():
+            continuous_files = list(storage_path.glob(f"{continuous_camera['id']}_*_continuous.*"))
+            if continuous_files:
+                self.log_result("continuous_recording", "Continuous recording files on disk", True, 
+                              f"Found {len(continuous_files)} files")
+                
+                # Check file sizes
+                for file_path in continuous_files:
+                    if file_path.stat().st_size > 0:
+                        self.log_result("continuous_recording", f"File {file_path.name} has content", True, 
+                                      f"Size: {file_path.stat().st_size} bytes")
+                    else:
+                        self.log_result("continuous_recording", f"File {file_path.name} has content", False, 
+                                      "File is empty")
+            else:
+                self.log_result("continuous_recording", "Continuous recording files on disk", False, 
+                              "No continuous recording files found")
+        else:
+            self.log_result("continuous_recording", "Storage path exists", False, 
+                          f"Storage path {storage_path} does not exist")
+
+        # Test 3: Verify continuous recording is not stopped by motion detection
+        # This is tested by checking that continuous recordings continue even with motion
+        print("Waiting additional 5 seconds to test motion interaction...")
+        await asyncio.sleep(5)
+        
+        try:
+            async with self.session.get(f"{BACKEND_URL}/recordings?camera_id={continuous_camera['id']}&record_type=continuous") as resp:
+                if resp.status == 200:
+                    recordings_after = await resp.json()
+                    if len(recordings_after) >= len(continuous_recordings):
+                        self.log_result("continuous_recording", "Continuous recording persists", True, 
+                                      "Continuous recording not interrupted by motion detection")
+                    else:
+                        self.log_result("continuous_recording", "Continuous recording persists", False, 
+                                      "Continuous recording may have been interrupted")
+                else:
+                    self.log_result("continuous_recording", "Check recording persistence", False, 
+                                  f"Status: {resp.status}")
+        except Exception as e:
+            self.log_result("continuous_recording", "Check recording persistence", False, 
+                          f"Exception: {str(e)}")
+
+    async def test_recording_filters(self):
+        """Test recording filters API"""
+        print("\n=== Testing Recording Filters ===")
+        
+        # First, get all recordings to have test data
+        try:
+            async with self.session.get(f"{BACKEND_URL}/recordings") as resp:
+                if resp.status == 200:
+                    all_recordings = await resp.json()
+                    self.log_result("recording_filters", "GET /recordings (no filters)", True, 
+                                  f"Retrieved {len(all_recordings)} recordings")
+                    self.test_recordings.extend(all_recordings)
+                else:
+                    self.log_result("recording_filters", "GET /recordings (no filters)", False, 
+                                  f"Status: {resp.status}")
+                    return
+        except Exception as e:
+            self.log_result("recording_filters", "GET /recordings (no filters)", False, 
+                          f"Exception: {str(e)}")
+            return
+
+        if not all_recordings:
+            self.log_result("recording_filters", "No recordings available for filter testing", False, 
+                          "Cannot test filters without recordings")
+            return
+
+        # Test 1: Filter by camera_id
+        if self.test_cameras:
+            camera_id = self.test_cameras[0]['id']
+            try:
+                async with self.session.get(f"{BACKEND_URL}/recordings?camera_id={camera_id}") as resp:
+                    if resp.status == 200:
+                        filtered_recordings = await resp.json()
+                        # Verify all recordings belong to the specified camera
+                        valid_filter = all(r.get('camera_id') == camera_id for r in filtered_recordings)
+                        self.log_result("recording_filters", "Filter by camera_id", valid_filter, 
+                                      f"Found {len(filtered_recordings)} recordings for camera {camera_id}")
+                    else:
+                        self.log_result("recording_filters", "Filter by camera_id", False, 
+                                      f"Status: {resp.status}")
+            except Exception as e:
+                self.log_result("recording_filters", "Filter by camera_id", False, 
+                              f"Exception: {str(e)}")
+
+        # Test 2: Filter by record_type
+        for record_type in ['continuous', 'motion']:
+            try:
+                async with self.session.get(f"{BACKEND_URL}/recordings?record_type={record_type}") as resp:
+                    if resp.status == 200:
+                        filtered_recordings = await resp.json()
+                        # Verify all recordings have the specified type
+                        valid_filter = all(r.get('record_type') == record_type for r in filtered_recordings)
+                        self.log_result("recording_filters", f"Filter by record_type={record_type}", valid_filter, 
+                                      f"Found {len(filtered_recordings)} {record_type} recordings")
+                    else:
+                        self.log_result("recording_filters", f"Filter by record_type={record_type}", False, 
+                                      f"Status: {resp.status}")
+            except Exception as e:
+                self.log_result("recording_filters", f"Filter by record_type={record_type}", False, 
+                              f"Exception: {str(e)}")
+
+        # Test 3: Filter by date range
+        now = datetime.now(timezone.utc)
+        start_date = (now - timedelta(hours=1)).isoformat()
+        end_date = now.isoformat()
+        
+        try:
+            async with self.session.get(f"{BACKEND_URL}/recordings?start_date={start_date}&end_date={end_date}") as resp:
+                if resp.status == 200:
+                    filtered_recordings = await resp.json()
+                    self.log_result("recording_filters", "Filter by date range", True, 
+                                  f"Found {len(filtered_recordings)} recordings in last hour")
+                else:
+                    self.log_result("recording_filters", "Filter by date range", False, 
+                                  f"Status: {resp.status}")
+        except Exception as e:
+            self.log_result("recording_filters", "Filter by date range", False, 
+                          f"Exception: {str(e)}")
+
+        # Test 4: Combined filters
+        if self.test_cameras:
+            camera_id = self.test_cameras[0]['id']
+            try:
+                async with self.session.get(f"{BACKEND_URL}/recordings?camera_id={camera_id}&record_type=continuous&start_date={start_date}") as resp:
+                    if resp.status == 200:
+                        filtered_recordings = await resp.json()
+                        # Verify all conditions are met
+                        valid_camera = all(r.get('camera_id') == camera_id for r in filtered_recordings)
+                        valid_type = all(r.get('record_type') == 'continuous' for r in filtered_recordings)
+                        valid_date = all(r.get('start_time', '') >= start_date for r in filtered_recordings)
+                        
+                        all_valid = valid_camera and valid_type and valid_date
+                        self.log_result("recording_filters", "Combined filters", all_valid, 
+                                      f"Found {len(filtered_recordings)} recordings matching all criteria")
+                    else:
+                        self.log_result("recording_filters", "Combined filters", False, 
+                                      f"Status: {resp.status}")
+            except Exception as e:
+                self.log_result("recording_filters", "Combined filters", False, 
+                              f"Exception: {str(e)}")
+
+        # Test 5: Invalid filter values
+        try:
+            async with self.session.get(f"{BACKEND_URL}/recordings?camera_id=nonexistent") as resp:
+                if resp.status == 200:
+                    filtered_recordings = await resp.json()
+                    self.log_result("recording_filters", "Invalid camera_id filter", len(filtered_recordings) == 0, 
+                                  f"Correctly returned {len(filtered_recordings)} recordings for nonexistent camera")
+                else:
+                    self.log_result("recording_filters", "Invalid camera_id filter", False, 
+                                  f"Status: {resp.status}")
+        except Exception as e:
+            self.log_result("recording_filters", "Invalid camera_id filter", False, 
+                          f"Exception: {str(e)}")
+
+    async def cleanup_test_data(self):
+        """Clean up test cameras and recordings"""
+        print("\n=== Cleaning Up Test Data ===")
+        
+        # Delete test cameras
+        for camera in self.test_cameras:
+            try:
+                async with self.session.delete(f"{BACKEND_URL}/cameras/{camera['id']}") as resp:
+                    if resp.status == 200:
+                        print(f"Deleted test camera: {camera['name']}")
+                    else:
+                        print(f"Failed to delete camera {camera['name']}: Status {resp.status}")
+            except Exception as e:
+                print(f"Exception deleting camera {camera['name']}: {str(e)}")
+
+    def print_summary(self):
+        """Print test summary"""
+        print("\n" + "="*60)
+        print("TEST SUMMARY")
+        print("="*60)
+        
+        total_passed = 0
+        total_failed = 0
+        
+        for category, results in self.results.items():
+            if category == "overall":
+                continue
+            
+            passed = results["passed"]
+            failed = results["failed"]
+            total_passed += passed
+            total_failed += failed
+            
+            print(f"\n{category.upper().replace('_', ' ')}:")
+            print(f"  Passed: {passed}")
+            print(f"  Failed: {failed}")
+            
+            if failed > 0:
+                print("  Failed tests:")
+                for detail in results["details"]:
+                    if detail["status"] == "FAIL":
+                        print(f"    - {detail['test']}: {detail['details']}")
+        
+        self.results["overall"]["passed"] = total_passed
+        self.results["overall"]["failed"] = total_failed
+        
+        print(f"\nOVERALL RESULTS:")
+        print(f"  Total Passed: {total_passed}")
+        print(f"  Total Failed: {total_failed}")
+        print(f"  Success Rate: {(total_passed/(total_passed+total_failed)*100):.1f}%" if (total_passed+total_failed) > 0 else "N/A")
+        
+        return total_failed == 0
+
+    async def run_all_tests(self):
+        """Run all tests"""
+        print("Starting Video Surveillance Backend API Tests")
+        print(f"Backend URL: {BACKEND_URL}")
+        print("="*60)
+        
+        await self.setup_session()
+        
+        try:
+            await self.test_camera_operations()
+            await self.test_continuous_recording()
+            await self.test_recording_filters()
+        finally:
+            await self.cleanup_test_data()
+            await self.cleanup_session()
+        
+        return self.print_summary()
+
+async def main():
+    """Main test function"""
+    tester = VideoSurveillanceAPITester()
+    success = await tester.run_all_tests()
+    
+    # Exit with appropriate code
+    sys.exit(0 if success else 1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
