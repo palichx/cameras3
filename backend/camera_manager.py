@@ -364,10 +364,27 @@ class CameraProcessor:
         
         while self.running:
             try:
-                ret, frame = self.cap.read()
+                # Try to read frame with retry mechanism
+                ret = False
+                frame = None
+                retries = 3
+                
+                for attempt in range(retries):
+                    # Clear buffer with grab() before read()
+                    self.cap.grab()
+                    ret, frame = self.cap.read()
+                    
+                    if ret:
+                        break
+                    else:
+                        if attempt < retries - 1:
+                            await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                
                 if not ret:
-                    logger.warning(f"Failed to read frame from camera {self.camera.name}")
+                    if frame_counter % 30 == 0:  # Log every 30 failures
+                        logger.warning(f"Failed to read frame from camera {self.camera.name} after {retries} retries")
                     await asyncio.sleep(1)
+                    frame_counter += 1
                     continue
                 
                 # Log first few frames
