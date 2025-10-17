@@ -265,8 +265,8 @@ class CameraProcessor:
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_file:
                 tmp_path = tmp_file.name
             
-            # Use ffmpeg to compress and speed up (2x speed, lower resolution)
-            cmd = f'ffmpeg -i "{video_path}" -vf "setpts=0.5*PTS,scale=640:-1" -c:v libx264 -crf 28 -y "{tmp_path}"'
+            # Use ffmpeg to compress and speed up (5x speed, 640x480 resolution)
+            cmd = f'ffmpeg -i "{video_path}" -vf "setpts=0.2*PTS,scale=640:480" -c:v libx264 -crf 28 -y "{tmp_path}"'
             process = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
