@@ -17,7 +17,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.ubuntu
     container_name: secureview-backend
     restart: unless-stopped
     environment:
