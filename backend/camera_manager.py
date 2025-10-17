@@ -367,47 +367,47 @@ class CameraProcessor:
             
             while self.running:
                 try:
-                # Try to read frame with retry mechanism
-                ret = False
-                frame = None
-                retries = 3
-                
-                for attempt in range(retries):
-                    # Clear buffer with grab() before read()
-                    self.cap.grab()
-                    ret, frame = self.cap.read()
+                    # Try to read frame with retry mechanism
+                    ret = False
+                    frame = None
+                    retries = 3
                     
-                    if ret:
-                        break
-                    else:
-                        if attempt < retries - 1:
-                            await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
-                
-                if not ret:
-                    if frame_counter % 30 == 0:  # Log every 30 failures
-                        logger.warning(f"Failed to read frame from camera {self.camera.name} after {retries} retries")
-                    await asyncio.sleep(1)
+                    for attempt in range(retries):
+                        # Clear buffer with grab() before read()
+                        self.cap.grab()
+                        ret, frame = self.cap.read()
+                        
+                        if ret:
+                            break
+                        else:
+                            if attempt < retries - 1:
+                                await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                    
+                    if not ret:
+                        if frame_counter % 30 == 0:  # Log every 30 failures
+                            logger.warning(f"Failed to read frame from camera {self.camera.name} after {retries} retries")
+                        await asyncio.sleep(1)
+                        frame_counter += 1
+                        continue
+                    
+                    # Log first few frames
+                    if frame_counter < 5:
+                        logger.info(f"Processing frame {frame_counter} for camera {self.camera.name}")
+                    
+                    # Process frame with motion detection only every N frames to reduce CPU
+                    check_motion_this_frame = (frame_counter % motion_check_interval == 0)
+                    await self.process_frame(frame, check_motion=check_motion_this_frame)
+                    
+                    # For continuous recording, ensure writer is always active
+                    if self.camera.recording.continuous and not self.video_writer:
+                        await self.start_recording("continuous")
+                    
                     frame_counter += 1
-                    continue
+                    await asyncio.sleep(frame_interval)
                 
-                # Log first few frames
-                if frame_counter < 5:
-                    logger.info(f"Processing frame {frame_counter} for camera {self.camera.name}")
-                
-                # Process frame with motion detection only every N frames to reduce CPU
-                check_motion_this_frame = (frame_counter % motion_check_interval == 0)
-                await self.process_frame(frame, check_motion=check_motion_this_frame)
-                
-                # For continuous recording, ensure writer is always active
-                if self.camera.recording.continuous and not self.video_writer:
-                    await self.start_recording("continuous")
-                
-                frame_counter += 1
-                await asyncio.sleep(frame_interval)
-            
-            except Exception as e:
-                logger.error(f"Error in camera loop: {e}")
-                await asyncio.sleep(1)
+                except Exception as e:
+                    logger.error(f"Error in camera loop: {e}")
+                    await asyncio.sleep(1)
         
         except Exception as e:
             logger.error(f"Fatal error in camera run() for {self.camera.name}: {e}")
