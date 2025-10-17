@@ -529,14 +529,28 @@ class CameraManager:
     
     async def get_live_stream(self, camera_id: str) -> AsyncGenerator:
         """Get live stream frames for a camera"""
+        if camera_id not in self.processors:
+            logger.warning(f"Camera {camera_id} not found in processors")
+            return
+        
+        logger.info(f"Starting live stream for camera {camera_id}")
+        frame_count = 0
+        
         while camera_id in self.processors:
             processor = self.processors[camera_id]
             frame_data = processor.get_current_frame_jpeg()
             
             if frame_data:
+                frame_count += 1
+                if frame_count % 30 == 0:  # Log every 30 frames
+                    logger.info(f"Streaming frame {frame_count} for camera {camera_id}")
+                
                 yield {
                     "frame": frame_data,
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
+            else:
+                if frame_count % 10 == 0:
+                    logger.warning(f"No frame data available for camera {camera_id}")
             
             await asyncio.sleep(0.05)  # Reduced delay for lower latency
