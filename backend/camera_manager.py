@@ -466,7 +466,7 @@ class CameraProcessor:
             return None
     
     async def stop(self):
-        """Stop processing"""
+        """Stop live stream"""
         self.running = False
         
         # Terminate FFmpeg process
@@ -479,10 +479,6 @@ class CameraProcessor:
                 await self.ffmpeg_process.wait()
             except Exception as e:
                 logger.error(f"Error stopping FFmpeg: {e}")
-        
-        # Stop recording
-        if self.video_writer:
-            await self.stop_recording()
 
 
 class CameraManager:
