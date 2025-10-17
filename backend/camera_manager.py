@@ -208,10 +208,9 @@ class CameraManager:
                 )
                 return
             
-            # Start processing task
+            # Store processor (no task needed - streaming on demand)
             self.processors[camera_id] = processor
             self.active_cameras[camera_id] = True
-            self.tasks[camera_id] = asyncio.create_task(processor.run())
             
             # Update camera status
             await self.db.cameras.update_one(
