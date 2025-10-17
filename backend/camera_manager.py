@@ -379,21 +379,14 @@ class CameraProcessor:
             logger.error(f"Error storing frame: {e}")
     
     async def run(self):
-        """Main processing loop with FFmpeg"""
+        """Simple live view loop with FFmpeg - no recording, no processing"""
         try:
             self.running = True
-            
-            # Start continuous recording if enabled
-            if self.camera.recording.continuous:
-                await self.start_recording("continuous")
-            
-            # Convert motion check interval from seconds to frames
-            motion_check_interval_frames = max(1, int(self.profile.motion_check_interval * self.profile.target_fps))
             frame_counter = 0
             reconnect_attempts = 0
             max_reconnects = 5
             
-            logger.info(f"Starting FFmpeg frame processing loop for camera {self.camera.name}, resolution: {self.frame_width}x{self.frame_height}")
+            logger.info(f"Starting FFmpeg live stream for camera {self.camera.name}, resolution: {self.frame_width}x{self.frame_height}")
             
             while self.running:
                 try:
@@ -430,8 +423,6 @@ class CameraProcessor:
                         raw_frame += chunk
                     
                     if len(raw_frame) != self.frame_size:
-                        if frame_counter % 30 == 0:  # Log every 30 failures
-                            logger.warning(f"Incomplete frame read from camera {self.camera.name}: got {len(raw_frame)}/{self.frame_size} bytes")
                         await asyncio.sleep(0.1)
                         continue
                     
@@ -440,15 +431,10 @@ class CameraProcessor:
                     
                     # Log first few frames
                     if frame_counter < 3:
-                        logger.info(f"Processing frame {frame_counter} for camera {self.camera.name}")
+                        logger.info(f"Received frame {frame_counter} for camera {self.camera.name}")
                     
-                    # Process frame with motion detection only every N frames to reduce CPU
-                    check_motion_this_frame = (frame_counter % motion_check_interval_frames == 0)
-                    await self.process_frame(frame, check_motion=check_motion_this_frame)
-                    
-                    # For continuous recording, ensure writer is always active
-                    if self.camera.recording.continuous and not self.video_writer:
-                        await self.start_recording("continuous")
+                    # Simply store frame for live view
+                    await self.process_frame(frame)
                     
                     frame_counter += 1
                 
@@ -463,10 +449,6 @@ class CameraProcessor:
             logger.error(f"Fatal error in camera run() for {self.camera.name}: {e}")
             import traceback
             logger.error(traceback.format_exc())
-        finally:
-            # Clean up
-            if self.video_writer:
-                await self.stop_recording()
     
     def get_current_frame_jpeg(self) -> Optional[str]:
         """Get current frame as base64 JPEG"""
