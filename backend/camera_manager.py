@@ -351,20 +351,21 @@ class CameraProcessor:
     
     async def run(self):
         """Main processing loop"""
-        self.running = True
-        
-        # Start continuous recording if enabled
-        if self.camera.recording.continuous:
-            await self.start_recording("continuous")
-        
-        # Use motion check interval from profile for optimization
-        frame_interval = 1.0 / self.profile.target_fps
-        motion_check_interval = self.profile.motion_check_interval_frames
-        frame_counter = 0
-        
-        logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
-        
-        while self.running:
+        try:
+            self.running = True
+            
+            # Start continuous recording if enabled
+            if self.camera.recording.continuous:
+                await self.start_recording("continuous")
+            
+            # Use motion check interval from profile for optimization
+            frame_interval = 1.0 / self.profile.target_fps
+            motion_check_interval = self.profile.motion_check_interval_frames
+            frame_counter = 0
+            
+            logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
+            
+            while self.running:
             try:
                 # Try to read frame with retry mechanism
                 ret = False
