@@ -141,7 +141,7 @@ const Recordings = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <Label>Камера</Label>
-            <Select value={filters.camera_id || "all"} onValueChange={(value) => setFilters({ ...filters, camera_id: value === "all" ? "" : value })}>
+            <Select value={filters.camera_id || "all"} onValueChange={(value) => setFilters({ ...filters, camera_id: value })}>
               <SelectTrigger data-testid="filter-camera" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все камеры" />
               </SelectTrigger>
@@ -158,7 +158,7 @@ const Recordings = () => {
 
           <div>
             <Label>Тип записи</Label>
-            <Select value={filters.record_type || "all"} onValueChange={(value) => setFilters({ ...filters, record_type: value === "all" ? "" : value })}>
+            <Select value={filters.record_type || "all"} onValueChange={(value) => setFilters({ ...filters, record_type: value })}>
               <SelectTrigger data-testid="filter-type" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все типы" />
               </SelectTrigger>
