@@ -5,8 +5,9 @@ import { ArrowLeft, Settings, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import CameraSettingsDialog from '@/components/CameraSettingsDialog';
+import { API_BASE_URL, WS_BASE_URL } from '@/config';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${API_BASE_URL}/api`;
 
 const CameraView = () => {
   const { id } = useParams();
