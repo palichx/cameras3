@@ -328,8 +328,8 @@ class CameraProcessor:
                         # Increment post-motion timer
                         self.post_motion_timer += 1
                         
-                        # Check if post-record period is over (adjust for motion check interval)
-                        post_frames = (self.camera.motion.post_record_seconds * self.profile.target_fps) // self.profile.motion_check_interval_frames
+                        # Check if post-record period is over
+                        post_frames = self.camera.motion.post_record_seconds * self.profile.target_fps
                         if self.post_motion_timer >= post_frames:
                             # Check minimum duration
                             duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
