@@ -128,33 +128,24 @@ async def test_camera_connection(camera_id: str):
 
 # ============ LIVE VIEW ENDPOINTS ============
 
-@api_router.websocket("/live/{camera_id}")
-async def websocket_live_stream(websocket: WebSocket, camera_id: str):
-    """WebSocket endpoint for live camera stream"""
-    await websocket.accept()
+@api_router.get("/live/{camera_id}")
+async def http_live_stream(camera_id: str):
+    """HTTP MJPEG streaming endpoint - direct video from FFmpeg"""
+    camera = await db.cameras.find_one({"id": camera_id}, {"_id": 0})
+    if not camera:
+        raise HTTPException(status_code=404, detail="Camera not found")
     
-    try:
-        camera = await db.cameras.find_one({"id": camera_id}, {"_id": 0})
-        if not camera:
-            await websocket.send_json({"error": "Camera not found"})
-            await websocket.close()
-            return
-        
-        # Subscribe to camera frames
-        async for frame_data in camera_manager.get_live_stream(camera_id):
-            if frame_data:
-                await websocket.send_json({
-                    "frame": frame_data["frame"],
-                    "timestamp": frame_data["timestamp"]
-                })
-            await asyncio.sleep(0.033)  # ~30 fps
+    # Get processor
+    if camera_id not in camera_manager.processors:
+        raise HTTPException(status_code=404, detail="Camera not active")
     
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for camera {camera_id}")
-    except Exception as e:
-        logger.error(f"Error in websocket: {e}")
-    finally:
-        await websocket.close()
+    processor = camera_manager.processors[camera_id]
+    
+    # Return MJPEG stream
+    return StreamingResponse(
+        processor.get_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
 
 # ============ RECORDING ENDPOINTS ============
 
