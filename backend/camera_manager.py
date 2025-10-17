@@ -256,39 +256,61 @@ class CameraProcessor:
             logger.error(f"Error sending Telegram alert: {e}")
     
     async def send_telegram_video(self, video_path: Path):
-        """Send video clip to Telegram (compressed and sped up)"""
+        """Send video clip to Telegram (converted from archive: 5x speed, 640x480, then deleted)"""
         if not self.telegram_bot or not self.settings.telegram_chat_id:
             return
         
+        tmp_path = None
         try:
+            logger.info(f"Converting video for Telegram: {video_path}")
+            
             # Create temporary compressed video
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_file:
                 tmp_path = tmp_file.name
             
-            # Use ffmpeg to compress and speed up (5x speed, 640x480 resolution)
-            cmd = f'ffmpeg -i "{video_path}" -vf "setpts=0.2*PTS,scale=640:480" -c:v libx264 -crf 28 -y "{tmp_path}"'
+            # Convert from archive: 5x speed, 640x480 resolution, good compression
+            cmd = f'ffmpeg -i "{video_path}" -vf "setpts=0.2*PTS,scale=640:480" -c:v libx264 -crf 28 -y "{tmp_path}" 2>&1'
             process = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            await process.communicate()
+            stdout, stderr = await process.communicate()
             
-            # Send video
+            # Check if conversion succeeded
+            if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+                logger.error(f"FFmpeg conversion failed for {video_path}")
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                return
+            
+            logger.info(f"Conversion complete. Sending to Telegram (size: {os.path.getsize(tmp_path) / 1024 / 1024:.2f} MB)")
+            
+            # Send video to Telegram
             async with aiofiles.open(tmp_path, 'rb') as f:
                 video_data = await f.read()
             
             await self.telegram_bot.send_video(
                 chat_id=self.settings.telegram_chat_id,
                 video=video_data,
-                caption=f"📹 Запись движения - {self.camera.name}"
+                caption=f"📹 Запись движения - {self.camera.name}\n⏱️ Ускорено в 5 раз"
             )
             
-            # Clean up temp file
+            logger.info(f"Video sent to Telegram successfully for camera {self.camera.name}")
+            
+            # Clean up temporary file after successful send
             os.unlink(tmp_path)
+            logger.info(f"Temporary Telegram video deleted: {tmp_path}")
         
         except Exception as e:
             logger.error(f"Error sending Telegram video: {e}")
+            # Clean up temp file on error
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                    logger.info(f"Cleaned up temporary file after error: {tmp_path}")
+                except:
+                    pass
     
     async def process_frame(self, frame, check_motion=True):
         """Process a single frame"""
