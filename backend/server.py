@@ -192,7 +192,7 @@ async def get_recording(recording_id: str):
 @api_router.head("/recordings/{recording_id}/video")
 @api_router.get("/recordings/{recording_id}/video")
 async def get_recording_video(recording_id: str, request: Request):
-    """Stream recording video with range support and conversion"""
+    """Stream recording video with range support"""
     recording = await db.recordings.find_one({"id": recording_id}, {"_id": 0})
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
@@ -201,33 +201,8 @@ async def get_recording_video(recording_id: str, request: Request):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    # If AVI file, convert to MP4 for browser compatibility
-    if file_path.suffix == '.avi':
-        mp4_path = file_path.with_suffix('.mp4')
-        
-        # Check if MP4 already exists, if not convert
-        if not mp4_path.exists():
-            logger.info(f"Converting {file_path} to MP4...")
-            # Convert AVI to MP4 using ffmpeg
-            cmd = f'ffmpeg -i "{file_path}" -c:v libx264 -preset ultrafast -crf 23 -y "{mp4_path}"'
-            process = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
-            await process.wait()
-            
-            if not mp4_path.exists():
-                logger.error(f"Failed to convert {file_path} to MP4")
-                raise HTTPException(status_code=500, detail="Failed to convert video")
-            
-            logger.info(f"Conversion complete: {mp4_path}")
-        
-        file_path = mp4_path
-    
-    # Double-check file exists
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Converted video file not found")
+    # Determine content type based on file extension
+    content_type = 'video/avi' if file_path.suffix == '.avi' else 'video/mp4'
     
     # Get file size
     file_size = file_path.stat().st_size
@@ -238,7 +213,7 @@ async def get_recording_video(recording_id: str, request: Request):
             headers={
                 'Accept-Ranges': 'bytes',
                 'Content-Length': str(file_size),
-                'Content-Type': 'video/mp4',
+                'Content-Type': content_type,
             }
         )
     
