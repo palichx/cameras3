@@ -366,7 +366,7 @@ class CameraProcessor:
             logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
             
             while self.running:
-            try:
+                try:
                 # Try to read frame with retry mechanism
                 ret = False
                 frame = None
