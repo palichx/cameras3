@@ -70,6 +70,7 @@
 
 **Frontend:**
 - React 19
+- React Router DOM v7 (требует Node.js 20+)
 - Tailwind CSS
 - Shadcn UI
 - Lucide Icons
@@ -80,7 +81,9 @@
 
 **Deployment:**
 - Docker & Docker Compose
-- Ubuntu 22.04 base (для совместимости OpenCV)
+- Node.js 20 (Alpine)
+- Python 3.11 (Ubuntu 22.04)
+- MongoDB 7.0
 
 ## Установка с Docker
 
