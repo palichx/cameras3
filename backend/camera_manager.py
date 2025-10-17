@@ -102,14 +102,14 @@ class CameraProcessor:
             return False
     
     async def _start_ffmpeg(self, url: str):
-        """Start FFmpeg process for frame extraction"""
+        """Start FFmpeg process for MJPEG stream output"""
         try:
             cmd = [
                 'ffmpeg',
                 '-rtsp_transport', 'tcp',  # TCP for stability
                 '-i', url,
-                '-f', 'rawvideo',
-                '-pix_fmt', 'bgr24',
+                '-f', 'mjpeg',  # MJPEG output format
+                '-q:v', '5',  # Quality (2-31, lower is better)
                 '-an',  # No audio
                 '-fflags', 'nobuffer',  # Minimal buffering
                 '-flags', 'low_delay',
