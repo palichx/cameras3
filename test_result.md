@@ -101,3 +101,66 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Video surveillance system supporting 20 cameras with continuous recording and motion-triggered recording.
+  User reported two critical issues:
+  1. Continuous recording not working ("непрерывная запись не работает")
+  2. Recording filters not working ("фильтра не работают")
+
+backend:
+  - task: "Fix continuous recording"
+    implemented: true
+    working: false
+    file: "backend/camera_manager.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "User reported continuous recording not working"
+      - working: false
+        agent: "main"
+        comment: "Fixed logic in camera_manager.py - separated continuous and motion recording modes. Continuous recording now stays active and doesn't get stopped by motion detection logic."
+
+frontend:
+  - task: "Fix recording filters"
+    implemented: true
+    working: false
+    file: "frontend/src/pages/Recordings.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "User reported filters not working"
+      - working: false
+        agent: "main"
+        comment: "Fixed filter logic in Recordings.jsx - corrected handling of 'all' value for camera_id and record_type filters"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Fix continuous recording"
+    - "Fix recording filters"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Fixed two critical issues:
+      1. Continuous recording: Modified camera_manager.py to prevent motion detection logic from stopping continuous recordings. Added check to restart continuous recording if writer becomes inactive.
+      2. Recording filters: Fixed Recordings.jsx to properly handle 'all' value for camera and record type filters.
+      
+      Please test:
+      - Backend: Verify continuous recording stays active and creates video files
+      - Frontend: Test filtering by camera, record type, and date range
