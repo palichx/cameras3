@@ -360,7 +360,8 @@ class CameraProcessor:
             
             # Use motion check interval from profile for optimization
             frame_interval = 1.0 / self.profile.target_fps
-            motion_check_interval = self.profile.motion_check_interval_frames
+            # Convert motion check interval from seconds to frames
+            motion_check_interval_frames = max(1, int(self.profile.motion_check_interval * self.profile.target_fps))
             frame_counter = 0
             
             logger.info(f"Starting frame processing loop for camera {self.camera.name}, FPS: {self.profile.target_fps}, interval: {frame_interval}")
