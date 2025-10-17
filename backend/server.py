@@ -192,7 +192,7 @@ async def get_recording(recording_id: str):
 @api_router.head("/recordings/{recording_id}/video")
 @api_router.get("/recordings/{recording_id}/video")
 async def get_recording_video(recording_id: str, request: Request):
-    """Stream recording video with range support"""
+    """Stream recording video with range support and conversion"""
     recording = await db.recordings.find_one({"id": recording_id}, {"_id": 0})
     if not recording:
         raise HTTPException(status_code=404, detail="Recording not found")
@@ -201,11 +201,40 @@ async def get_recording_video(recording_id: str, request: Request):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
     
-    # Determine content type based on file extension
-    content_type = 'video/avi' if file_path.suffix == '.avi' else 'video/mp4'
+    # Convert AVI to MP4 for browser compatibility
+    if file_path.suffix == '.avi':
+        mp4_path = file_path.with_suffix('.mp4')
+        
+        # Convert if MP4 doesn't exist
+        if not mp4_path.exists():
+            try:
+                logger.info(f"Converting {file_path} to MP4...")
+                cmd = f'ffmpeg -i "{file_path}" -c:v libx264 -preset veryfast -crf 23 -c:a aac -y "{mp4_path}" 2>&1'
+                process = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await process.wait()
+                
+                if mp4_path.exists():
+                    logger.info(f"Conversion complete: {mp4_path}")
+                else:
+                    logger.error(f"Conversion failed for {file_path}")
+                    # Fall back to AVI
+                    pass
+            except Exception as e:
+                logger.error(f"Error converting {file_path}: {e}")
+                # Fall back to AVI
+                pass
+        
+        # Use MP4 if it exists
+        if mp4_path.exists():
+            file_path = mp4_path
     
     # Get file size
     file_size = file_path.stat().st_size
+    content_type = 'video/mp4' if file_path.suffix == '.mp4' else 'video/avi'
     
     # For HEAD requests, just return headers
     if request.method == "HEAD":
