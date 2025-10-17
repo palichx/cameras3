@@ -369,63 +369,14 @@ class CameraProcessor:
                 except:
                     pass
     
-    async def process_frame(self, frame, check_motion=True):
-        """Process a single frame"""
+    async def process_frame(self, frame):
+        """Store frame for live view - no processing"""
         try:
-            # Frame is already resized by FFmpeg
-            # Store frame for live view (must copy to avoid race conditions)
+            # Simply store frame for live view (copy to avoid race conditions)
             self.last_frame = frame.copy()
-            
-            # Add to buffer for pre-recording (only if motion enabled and we're checking motion this frame)
-            if self.camera.motion.enabled and self.camera.recording.on_motion and check_motion:
-                self.frame_buffer.append(frame.copy())
-            
-            # Detect motion if enabled and this frame should be checked
-            if self.camera.motion.enabled and check_motion:
-                motion = self.detect_motion(frame)
-                
-                if motion:
-                    if not self.motion_detected:
-                        # Motion started
-                        self.motion_detected = True
-                        self.motion_start_time = datetime.now(timezone.utc)
-                        self.post_motion_timer = 0
-                        
-                        # Send Telegram alert
-                        if self.camera.telegram.send_alerts:
-                            asyncio.create_task(self.send_telegram_alert())
-                        
-                        # Start motion recording only if not in continuous mode
-                        if self.camera.recording.on_motion and not self.camera.recording.continuous:
-                            await self.start_recording("motion")
-                    else:
-                        # Motion continues - reset post timer
-                        self.post_motion_timer = 0
-                else:
-                    if self.motion_detected:
-                        # Increment post-motion timer
-                        self.post_motion_timer += 1
-                        
-                        # Check if post-record period is over
-                        post_frames = self.camera.motion.post_record_seconds * self.profile.target_fps
-                        if self.post_motion_timer >= post_frames:
-                            # Check minimum duration
-                            duration = (datetime.now(timezone.utc) - self.motion_start_time).total_seconds()
-                            if duration >= self.camera.motion.min_duration_seconds:
-                                # Valid motion ended - stop only motion recordings, not continuous
-                                if self.camera.recording.on_motion and not self.camera.recording.continuous and self.video_writer:
-                                    await self.stop_recording()
-                            
-                            self.motion_detected = False
-                            self.motion_start_time = None
-                            self.post_motion_timer = 0
-            
-            # Write frame to recording
-            if self.video_writer:
-                self.video_writer.write(frame)
         
         except Exception as e:
-            logger.error(f"Error processing frame: {e}")
+            logger.error(f"Error storing frame: {e}")
     
     async def run(self):
         """Main processing loop with FFmpeg"""
