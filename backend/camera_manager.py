@@ -409,9 +409,14 @@ class CameraProcessor:
                 logger.error(f"Error in camera loop: {e}")
                 await asyncio.sleep(1)
         
-        # Clean up
-        if self.video_writer:
-            await self.stop_recording()
+        except Exception as e:
+            logger.error(f"Fatal error in camera run() for {self.camera.name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        finally:
+            # Clean up
+            if self.video_writer:
+                await self.stop_recording()
     
     def get_current_frame_jpeg(self) -> Optional[str]:
         """Get current frame as base64 JPEG"""
