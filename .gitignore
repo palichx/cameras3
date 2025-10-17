@@ -144,3 +144,7 @@ recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251017_015203_motion.avi
 *.env
 *.env.*
 recordings/81f8c893-bdeb-416b-8e47-215eabbdac46_20251017_021556_motion.avi
+-e 
+# Environment files
+*.env
+*.env.*
