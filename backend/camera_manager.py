@@ -295,7 +295,8 @@ class CameraProcessor:
         try:
             # Resize frame
             frame = self.resize_frame(frame)
-            self.last_frame = frame
+            # Store frame for live view (must copy to avoid race conditions)
+            self.last_frame = frame.copy()
             
             # Add to buffer for pre-recording (only if motion enabled and we're checking motion this frame)
             if self.camera.motion.enabled and self.camera.recording.on_motion and check_motion:
