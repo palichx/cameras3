@@ -242,20 +242,20 @@ async def get_recording_video(recording_id: str, request: Request):
             'Content-Range': f'bytes {start}-{end}/{file_size}',
             'Accept-Ranges': 'bytes',
             'Content-Length': str(chunk_size),
-            'Content-Type': 'video/mp4',
+            'Content-Type': content_type,
         }
         
         return StreamingResponse(
             file_reader(),
             status_code=206,
             headers=headers,
-            media_type="video/mp4"
+            media_type=content_type
         )
     else:
         # No range requested, return entire file
         return FileResponse(
             path=str(file_path),
-            media_type="video/mp4",
+            media_type=content_type,
             headers={
                 'Accept-Ranges': 'bytes',
                 'Content-Length': str(file_size)
