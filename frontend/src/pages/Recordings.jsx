@@ -146,7 +146,7 @@ const Recordings = () => {
               <SelectTrigger data-testid="filter-camera" className="bg-[var(--bg-tertiary)] border-[var(--border)]">
                 <SelectValue placeholder="Все камеры" />
               </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)]">
+              <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border)] z-[9999]">
                 <SelectItem value="all">Все камеры</SelectItem>
                 {cameras.map((camera) => (
                   <SelectItem key={camera.id} value={camera.id}>
